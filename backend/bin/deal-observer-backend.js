@@ -3,15 +3,15 @@ import assert from 'node:assert'
 import { createPgPool } from '@filecoin-station/deal-observer-db'
 import * as Sentry from '@sentry/node'
 import timers from 'node:timers/promises'
-import slug from 'slug'
 import '../lib/instrument.js'
 import { createInflux } from '../lib/telemetry.js'
 import { rpcRequest } from '../lib/rpc-service/service.js'
 import { fetchDealWithHighestActivatedEpoch, countStoredActiveDeals, observeBuiltinActorEvents } from '../lib/deal-observer.js'
-import { countStoredActiveDealsWithPayloadState, countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids } from '../lib/resolve-payload-cids.js'
+import { countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids, countRevertedActiveDeals, countStoredActiveDealsWithPayloadState } from '../lib/resolve-payload-cids.js'
 import { findAndSubmitUnsubmittedDeals, submitDealsToSparkApi } from '../lib/spark-api-submit-deals.js'
 import { payloadCidRequest } from '../lib/piece-indexer-service.js'
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
+/** @import {MakeRpcRequest, MakePayloadCidRequest} from '../lib/typings.d.ts' */
 
 const {
   INFLUXDB_TOKEN,
@@ -38,18 +38,23 @@ assert(finalityEpochs <= maxPastEpochs)
 const pgPool = await createPgPool()
 const { recordTelemetry } = createInflux(INFLUXDB_TOKEN)
 
+/**
+ * @param {MakeRpcRequest} makeRpcRequest
+ * @param {Queryable} pgPool
+ */
 const observeActorEventsLoop = async (makeRpcRequest, pgPool) => {
-  const LOOP_NAME = 'Observe actor events'
   while (true) {
     const start = Date.now()
     try {
       await observeBuiltinActorEvents(pgPool, makeRpcRequest, maxPastEpochs, finalityEpochs)
       const newLastInsertedDeal = await fetchDealWithHighestActivatedEpoch(pgPool)
       const numberOfStoredDeals = await countStoredActiveDeals(pgPool)
+      const numberOfRevertedActiveDeals = await countRevertedActiveDeals(pgPool)
       if (INFLUXDB_TOKEN) {
         recordTelemetry('observed_deals_stats', point => {
-          point.intField('last_searched_epoch', newLastInsertedDeal.activated_at_epoch)
+          point.intField('last_searched_epoch', newLastInsertedDeal?.activated_at_epoch ?? 0)
           point.intField('number_of_stored_active_deals', numberOfStoredDeals)
+          point.intField('number_of_reverted_active_deals', numberOfRevertedActiveDeals)
         })
       }
     } catch (e) {
@@ -57,10 +62,10 @@ const observeActorEventsLoop = async (makeRpcRequest, pgPool) => {
       Sentry.captureException(e)
     }
     const dt = Date.now() - start
-    console.log(`Loop "${LOOP_NAME}" took ${dt}ms`)
+    console.log(`Loop "Observe built-in actor events" took ${dt}ms`)
 
     if (INFLUXDB_TOKEN) {
-      recordTelemetry(`loop_${slug(LOOP_NAME, '_')}`, point => {
+      recordTelemetry('loop_builtin_actor_events', point => {
         point.intField('interval_ms', LOOP_INTERVAL)
         point.intField('duration_ms', dt)
       })
@@ -81,7 +86,6 @@ const observeActorEventsLoop = async (makeRpcRequest, pgPool) => {
  * @param {number} args.sparkApiSubmitDealsBatchSize
  */
 const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken, sparkApiSubmitDealsBatchSize }) => {
-  const LOOP_NAME = 'Submit deals to spark-api'
   while (true) {
     const start = Date.now()
     try {
@@ -103,10 +107,10 @@ const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken,
       Sentry.captureException(e)
     }
     const dt = Date.now() - start
-    console.log(`Loop "${LOOP_NAME}" took ${dt}ms`)
+    console.log(`Loop "Submit deals to spark-api" took ${dt}ms`)
 
     if (INFLUXDB_TOKEN) {
-      recordTelemetry(`loop_${slug(LOOP_NAME, '_')}`, point => {
+      recordTelemetry('loop_submit_deals_to_sparkapi', point => {
         point.intField('interval_ms', LOOP_INTERVAL)
         point.intField('duration_ms', dt)
       })
@@ -117,8 +121,12 @@ const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken,
   }
 }
 
+/**
+ * @param {MakeRpcRequest} makeRpcRequest
+ * @param {MakePayloadCidRequest} makePayloadCidRequest
+ * @param {Queryable} pgPool
+ */
 export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidRequest, pgPool) => {
-  const LOOP_NAME = 'Resolve payload CIDs'
   while (true) {
     const start = Date.now()
     // Maximum number of deals to resolve payload CIDs for in one loop iteration
@@ -126,17 +134,17 @@ export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidReque
     try {
       const numOfPayloadCidsResolved = await resolvePayloadCids(makeRpcRequest, makePayloadCidRequest, pgPool, maxDeals)
       const totalNumOfUnresolvedPayloadCids = await countStoredActiveDealsWithUnresolvedPayloadCid(pgPool)
-      const totalNumOfResolvedPayloadCidStates = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_RESOLVED')
-      const totalNumOfUnresolvedPayloadCidStates = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_UNRESOLVED')
-      const totalNumOfTerminallyUnretrievablePayloadCidStates = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_TERMINALLY_UNRETRIEVABLE')
-      const totalNumOfNotYetQueriedPayloadCidStates = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_NOT_QUERIED_YET')
+      const totalNumOfDealsWithPayloadCidResolved = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_RESOLVED')
+      const totalNumOfDealsWithPayloadCidUnresolved = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_UNRESOLVED')
+      const totalNumOfDealsWithPayloadCidTerminallyUnretrievable = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_TERMINALLY_UNRETRIEVABLE')
+      const totalNumOfDealsWithPayloadCidNotYetQueried = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_NOT_QUERIED_YET')
       if (INFLUXDB_TOKEN) {
         recordTelemetry('resolve_payload_cids_stats', point => {
           point.intField('total_unresolved_payload_cids', totalNumOfUnresolvedPayloadCids)
-          point.intField('payload_cid_state_unresolved', totalNumOfUnresolvedPayloadCidStates)
-          point.intField('payload_cid_state_resolved', totalNumOfResolvedPayloadCidStates)
-          point.intField('payload_cid_state_terminally_unretrievable', totalNumOfTerminallyUnretrievablePayloadCidStates)
-          point.intField('payload_cid_state_not_yet_queried', totalNumOfNotYetQueriedPayloadCidStates)
+          point.intField('payload_cid_state_unresolved', totalNumOfDealsWithPayloadCidUnresolved)
+          point.intField('payload_cid_state_resolved', totalNumOfDealsWithPayloadCidResolved)
+          point.intField('payload_cid_state_terminally_unretrievable', totalNumOfDealsWithPayloadCidTerminallyUnretrievable)
+          point.intField('payload_cid_state_not_yet_queried', totalNumOfDealsWithPayloadCidNotYetQueried)
           point.intField('payload_cids_resolved', numOfPayloadCidsResolved)
         })
       }
@@ -145,11 +153,11 @@ export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidReque
       Sentry.captureException(e)
     }
     const dt = Date.now() - start
-    console.log(`Loop "${LOOP_NAME}" took ${dt}ms`)
+    console.log(`Loop "Look up payload CIDs" took ${dt}ms`)
 
     // For local monitoring and debugging, we can omit sending data to InfluxDB
     if (INFLUXDB_TOKEN) {
-      recordTelemetry(`loop_${slug(LOOP_NAME, '_')}`, point => {
+      recordTelemetry('loop_resolve_payload_cids', point => {
         point.intField('interval_ms', LOOP_INTERVAL)
         point.intField('duration_ms', dt)
       })

@@ -6,6 +6,8 @@ import Postgrator from 'postgrator'
 // re-export types
 /** @typedef {import('./typings.js').Queryable} Queryable */
 /** @typedef {import('./typings.js').PgPool} PgPool */
+/** @typedef {import('./typings.js').UnknownRow} UnknownRow */
+/** @typedef {import('./typings.js').QueryResultWithUnknownRows} QueryResultWithUnknownRows */
 
 // Configure node-postgres to deserialize BIGINT values as BigInt, not String
 pg.types.setTypeParser(20, BigInt) // Type Id 20 = BIGINT | BIGSERIAL
@@ -33,7 +35,11 @@ const poolConfig = {
   maxLifetimeSeconds: 60
 }
 
-const onError = err => {
+/**
+  * @param {Error} err
+  * @returns {void}
+  */
+const onError = (err) => {
   // Prevent crashing the process on idle client errors, the pool will recover
   // itself. If all connections are lost, the process will still crash.
   // https://github.com/brianc/node-postgres/issues/1324#issuecomment-308778405

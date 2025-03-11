@@ -14,8 +14,8 @@ export const getLocalDayAsISOString = (d) => {
 
 export const today = () => getLocalDayAsISOString(new Date())
 export const yesterday = () => getLocalDayAsISOString(new Date(Date.now() - 24 * 60 * 60 * 1000))
-export const daysAgo = (n) => getLocalDayAsISOString(new Date(Date.now() - n * 24 * 60 * 60 * 1000))
-export const daysFromNow = (n) => getLocalDayAsISOString(new Date(Date.now() + n * 24 * 60 * 60 * 1000))
+export const daysAgo = (/** @type {number} */ n) => getLocalDayAsISOString(new Date(Date.now() - n * 24 * 60 * 60 * 1000))
+export const daysFromNow = (/** @type {number} */ n) => getLocalDayAsISOString(new Date(Date.now() + n * 24 * 60 * 60 * 1000))
 
 /**
  * Calculates activated at, term start, term min, and term max.
