@@ -276,33 +276,25 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
   })
 
   it('piece indexer count number of resolved paylod CIDs', async () => {
-    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
-    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }])
-    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.Resolved)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
   it('piece indexer count number of unresolved paylod CIDs', async () => {
-    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
-    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }])
-    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.Unresolved)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
   it('piece indexer count number of terminally unretrievable paylod CIDs', async () => {
-    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
-    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }])
-    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.TerminallyUnretrievable)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
   it('piece indexer count number of not yet querried paylod CIDs', async () => {
-    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
-    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
-    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.NotQueried)
     assert.strictEqual(missingPayloadCids, 3n)
   })
