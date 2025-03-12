@@ -116,7 +116,7 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
   /**
   * @param {Static<typeof ActiveDeal >[]} activeDeals
   **/
-  const storeActiveDealsCustom = async (activeDeals) => {
+  const withUniqueActiveDeals = async (activeDeals) => {
     const insertQuery = `
         INSERT INTO active_deals (
           activated_at_epoch,
@@ -200,7 +200,7 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
       return returnPayload ? payloadCid : null
     }
 
-    await storeActiveDealsCustom([DEFAULT_ACTIVE_DEAL])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
     const expectedDealDbEntry = { id: 1, ...DEFAULT_ACTIVE_DEAL }
     assert.deepStrictEqual((await loadDeals(pgPool, 'SELECT * FROM active_deals')), [expectedDealDbEntry])
     // The payload is unretrievable and the last retrieval timestamp should be updated
@@ -228,7 +228,7 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
       last_payload_retrieval_attempt: new Date(now - 1000 * 60 * 60 * 24 * 4)
     })
 
-    await storeActiveDealsCustom([deal])
+    await withUniqueActiveDeals([deal])
     await resolvePayloadCids(fetchMinerId, resolvePayloadCid, pgPool, 10000, now)
     assert.strictEqual(payloadsCalled, 1)
     // This is the second attempt that failed to fetch the payload CID so the deal should be marked as unretrievable
@@ -257,7 +257,7 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
       last_payload_retrieval_attempt: new Date(now - 1000 * 60 * 60 * 24 * 4)
     })
 
-    await storeActiveDealsCustom([deal])
+    await withUniqueActiveDeals([deal])
     await resolvePayloadCids(fetchMinerId, resolvePayloadCid, pgPool, 10000, now)
     assert.strictEqual(payloadsCalled, 1)
     const expectedDealDbEntry = {
@@ -276,33 +276,33 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
   })
 
   it('piece indexer count number of resolved paylod CIDs', async () => {
-    await storeActiveDealsCustom([DEFAULT_ACTIVE_DEAL])
-    await storeActiveDealsCustom([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }])
-    await storeActiveDealsCustom([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
+    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }])
+    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.Resolved)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
   it('piece indexer count number of unresolved paylod CIDs', async () => {
-    await storeActiveDealsCustom([DEFAULT_ACTIVE_DEAL])
-    await storeActiveDealsCustom([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }])
-    await storeActiveDealsCustom([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
+    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }])
+    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.Unresolved)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
   it('piece indexer count number of terminally unretrievable paylod CIDs', async () => {
-    await storeActiveDealsCustom([DEFAULT_ACTIVE_DEAL])
-    await storeActiveDealsCustom([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }])
-    await storeActiveDealsCustom([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
+    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }])
+    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.TerminallyUnretrievable)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
   it('piece indexer count number of not yet querried paylod CIDs', async () => {
-    await storeActiveDealsCustom([DEFAULT_ACTIVE_DEAL])
-    await storeActiveDealsCustom([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
-    await storeActiveDealsCustom([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
+    await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL])
+    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
+    await withUniqueActiveDeals([{ ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.NotQueried)
     assert.strictEqual(missingPayloadCids, 3n)
   })
