@@ -72,6 +72,17 @@ export async function countRevertedActiveDeals (pgPool) {
 
 /**
  * @param {Queryable} pgPool
+ * @param {Static< typeof PayloadRetrievabilityStateType>} state
+ * @returns {Promise<number>}
+ */
+export async function countStoredActiveDealsWithPayloadState (pgPool, state) {
+  const query = 'SELECT COUNT(*) FROM active_deals WHERE payload_retrievability_state = $1'
+  const result = await pgPool.query(query, [state])
+  return result.rows[0].count
+}
+
+/**
+ * @param {Queryable} pgPool
  * @param {Static<typeof ActiveDealDbEntry>} deal
  * @param {Static< typeof PayloadRetrievabilityStateType>} newPayloadRetrievalState
  * @param {Date} lastRetrievalAttemptTimestamp
