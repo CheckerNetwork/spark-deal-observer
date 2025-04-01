@@ -10,6 +10,9 @@ import { fetchDealWithHighestActivatedEpoch, countStoredActiveDeals, observeBuil
 import { countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids, countRevertedActiveDeals, countStoredActiveDealsWithPayloadState } from '../lib/resolve-payload-cids.js'
 import { findAndSubmitUnsubmittedDeals, submitDealsToSparkApi } from '../lib/spark-api-submit-deals.js'
 import { payloadCidRequest } from '../lib/piece-indexer-service.js'
+// @ts-ignore
+import { MINER_TO_PEERID_CONTRACT_ADDRESS, MINER_TO_PEERID_CONTRACT_ABI } from 'index-provider-peer-id'
+import { ethers } from 'ethers'
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import {MakeRpcRequest, MakePayloadCidRequest} from '../lib/typings.d.ts' */
 
@@ -17,7 +20,9 @@ const {
   INFLUXDB_TOKEN,
   SPARK_API_BASE_URL,
   SPARK_API_TOKEN,
-  SPARK_API_SUBMIT_DEALS_BATCH_SIZE = 100
+  SPARK_API_SUBMIT_DEALS_BATCH_SIZE = 100,
+  RPC_URL,
+  GLIF_TOKEN
 } = process.env
 
 if (!INFLUXDB_TOKEN) {
@@ -25,6 +30,7 @@ if (!INFLUXDB_TOKEN) {
 }
 assert(SPARK_API_BASE_URL, 'SPARK_API_BASE_URL required')
 assert(SPARK_API_TOKEN, 'SPARK_API_TOKEN required')
+assert(RPC_URL, 'RPC_URL required')
 
 const LOOP_INTERVAL = 10 * 1000
 
@@ -127,12 +133,21 @@ const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken,
  * @param {Queryable} pgPool
  */
 export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidRequest, pgPool) => {
+  // Initialize contract using your RPC configuration
+  const fetchRequest = new ethers.FetchRequest(RPC_URL)
+  fetchRequest.setHeader('Authorization', `Bearer ${GLIF_TOKEN}`)
+  const provider = new ethers.JsonRpcProvider(fetchRequest)
+  const contract = new ethers.Contract(
+    MINER_TO_PEERID_CONTRACT_ADDRESS,
+    MINER_TO_PEERID_CONTRACT_ABI,
+    provider
+  )
   while (true) {
     const start = Date.now()
     // Maximum number of deals to resolve payload CIDs for in one loop iteration
     const maxDeals = 1000
     try {
-      const numOfPayloadCidsResolved = await resolvePayloadCids(makeRpcRequest, makePayloadCidRequest, pgPool, maxDeals)
+      const numOfPayloadCidsResolved = await resolvePayloadCids(makeRpcRequest, makePayloadCidRequest, pgPool, maxDeals, contract)
       const totalNumOfUnresolvedPayloadCids = await countStoredActiveDealsWithUnresolvedPayloadCid(pgPool)
       const totalNumOfDealsWithPayloadCidResolved = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_RESOLVED')
       const totalNumOfDealsWithPayloadCidUnresolved = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_UNRESOLVED')

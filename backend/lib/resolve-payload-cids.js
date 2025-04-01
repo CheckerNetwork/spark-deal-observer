@@ -1,7 +1,10 @@
 import { loadDeals } from './deal-observer.js'
 import * as util from 'node:util'
-import { getMinerPeerId } from './rpc-service/service.js'
 import { PayloadRetrievabilityState } from '@filecoin-station/deal-observer-db/lib/types.js'
+import {
+  getIndexProviderPeerId
+// @ts-ignore
+} from 'index-provider-peer-id'
 
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import { Static } from '@sinclair/typebox' */
@@ -15,12 +18,16 @@ const THREE_DAYS_IN_MILLISECONDS = 1000 * 60 * 60 * 24 * 3
  * @param {import('./typings.js').MakePayloadCidRequest} makePayloadCidRequest
  * @param {Queryable} pgPool
  * @param {number} maxDeals
+ * @param {object} smartContract - The smart contract instance
+ * @param {number} now - The current timestamp in milliseconds
  * @returns {Promise<number>}
  */
-export const resolvePayloadCids = async (makeRpcRequest, makePayloadCidRequest, pgPool, maxDeals, now = Date.now()) => {
+export const resolvePayloadCids = async (makeRpcRequest, makePayloadCidRequest, pgPool, maxDeals, smartContract, now = Date.now()) => {
   let payloadCidsResolved = 0
   for (const deal of await fetchDealsWithUnresolvedPayloadCid(pgPool, maxDeals, new Date(now - THREE_DAYS_IN_MILLISECONDS))) {
-    const minerPeerId = await getMinerPeerId(deal.miner_id, makeRpcRequest)
+    const minerPeerId = await getIndexProviderPeerId(`f0${deal.miner_id}`,
+      smartContract,
+      { rpcFn: makeRpcRequest })
     const payloadCid = await makePayloadCidRequest(minerPeerId, deal.piece_cid)
     if (payloadCid) deal.payload_cid = payloadCid
     if (!deal.payload_cid) {
