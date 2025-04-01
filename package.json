@@ -31,8 +31,5 @@
     "prettier": "^3.5.3",
     "standard": "^17.1.2",
     "typescript": "^5.8.2"
-  },
-  "dependencies": {
-    "ethers": "^6.13.5"
   }
 }

@@ -10,7 +10,6 @@ import { fetchDealWithHighestActivatedEpoch, countStoredActiveDeals, observeBuil
 import { countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids, countRevertedActiveDeals, countStoredActiveDealsWithPayloadState } from '../lib/resolve-payload-cids.js'
 import { findAndSubmitUnsubmittedDeals, submitDealsToSparkApi } from '../lib/spark-api-submit-deals.js'
 import { payloadCidRequest } from '../lib/piece-indexer-service.js'
-// @ts-ignore
 import { ethers } from 'ethers'
 import {
   getIndexProviderPeerId,
