@@ -11,8 +11,12 @@ import { countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids, cou
 import { findAndSubmitUnsubmittedDeals, submitDealsToSparkApi } from '../lib/spark-api-submit-deals.js'
 import { payloadCidRequest } from '../lib/piece-indexer-service.js'
 // @ts-ignore
-import { MINER_TO_PEERID_CONTRACT_ADDRESS, MINER_TO_PEERID_CONTRACT_ABI } from 'index-provider-peer-id'
 import { ethers } from 'ethers'
+import {
+  getIndexProviderPeerId,
+  MINER_TO_PEERID_CONTRACT_ADDRESS, MINER_TO_PEERID_CONTRACT_ABI
+// @ts-ignore
+} from 'index-provider-peer-id'
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import {MakeRpcRequest, MakePayloadCidRequest} from '../lib/typings.d.ts' */
 
@@ -137,17 +141,24 @@ export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidReque
   const fetchRequest = new ethers.FetchRequest(RPC_URL)
   fetchRequest.setHeader('Authorization', `Bearer ${GLIF_TOKEN}`)
   const provider = new ethers.JsonRpcProvider(fetchRequest)
-  const contract = new ethers.Contract(
+  const smartContract = new ethers.Contract(
     MINER_TO_PEERID_CONTRACT_ADDRESS,
     MINER_TO_PEERID_CONTRACT_ABI,
     provider
   )
+  const getPeerId = async (/** @type {number} */ minerId) => {
+    return await getIndexProviderPeerId(
+    `f0${minerId}`,
+    smartContract,
+    { rpcFn: makeRpcRequest }
+    )
+  }
   while (true) {
     const start = Date.now()
     // Maximum number of deals to resolve payload CIDs for in one loop iteration
     const maxDeals = 1000
     try {
-      const numOfPayloadCidsResolved = await resolvePayloadCids(makeRpcRequest, makePayloadCidRequest, pgPool, maxDeals, contract)
+      const numOfPayloadCidsResolved = await resolvePayloadCids(getPeerId, makePayloadCidRequest, pgPool, maxDeals)
       const totalNumOfUnresolvedPayloadCids = await countStoredActiveDealsWithUnresolvedPayloadCid(pgPool)
       const totalNumOfDealsWithPayloadCidResolved = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_RESOLVED')
       const totalNumOfDealsWithPayloadCidUnresolved = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_UNRESOLVED')
