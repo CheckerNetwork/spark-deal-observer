@@ -135,6 +135,7 @@ jobs:
       - run: flyctl deploy --remote-only -c backend/fly.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_TOKEN_BACKEND }}
+          GLIF_TOKEN: ${{ secrets.GLIF_TOKEN }}
       - if: failure()
         uses: slackapi/slack-github-action@v2.0.0
         with:
