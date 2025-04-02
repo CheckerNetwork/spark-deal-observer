@@ -372,7 +372,7 @@ describe('getPeerId', () => {
     const mockRpcRequest = async () => {
       throw new Error('RPC error')
     }
-    assert.rejects(
+    await assert.rejects(
       async () => {
         await getPeerId(minerId, {
           smartContract: mockSmartContract,
@@ -381,7 +381,8 @@ describe('getPeerId', () => {
       },
       (err) => {
         assert.ok(err instanceof Error)
-        assert.ok(err.cause?.toString().includes(`Error fetching PeerID for miner f0${minerId}`), err.toString())
+        assert.ok(err.toString().includes(`Error fetching index provider PeerID for miner f0${minerId}`), err.toString())
+        return true
       }
     )
   })
