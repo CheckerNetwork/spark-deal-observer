@@ -10,6 +10,7 @@ import {
 // @ts-ignore
 } from 'index-provider-peer-id'
 import { rpcRequest } from './rpc-service/service.js'
+import { assert } from 'node:console'
 
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import { Static } from '@sinclair/typebox' */
@@ -117,8 +118,9 @@ async function updatePayloadCidInActiveDeal (pgPool, deal, newPayloadRetrievalSt
   }
 }
 
-export function getSmartContractClient () {
+function getSmartContractClient () {
   const fetchRequest = new ethers.FetchRequest(RPC_URL)
+  assert(GLIF_TOKEN, 'GLIF_TOKEN is required')
   fetchRequest.setHeader('Authorization', `Bearer ${GLIF_TOKEN}`)
   const provider = new ethers.JsonRpcProvider(fetchRequest)
   return new ethers.Contract(
@@ -127,6 +129,7 @@ export function getSmartContractClient () {
     provider
   )
 }
+const defaultSmartContractClient = getSmartContractClient()
 
 /**
  * @param {number} minerId
@@ -135,7 +138,7 @@ export function getSmartContractClient () {
  * @param {import('./typings.js').MakeRpcRequest} options.makeRpcRequest
  * @returns {Promise<{ peerId: string, source: string }>}
  */
-export const getPeerId = async (minerId, { smartContract, makeRpcRequest } = { smartContract: getSmartContractClient(), makeRpcRequest: rpcRequest }) => {
+export const getPeerId = async (minerId, { smartContract, makeRpcRequest } = { smartContract: defaultSmartContractClient, makeRpcRequest: rpcRequest }) => {
   return await getIndexProviderPeerId(
   `f0${minerId}`,
   smartContract,
