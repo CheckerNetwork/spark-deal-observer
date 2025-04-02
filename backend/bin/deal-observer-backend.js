@@ -122,11 +122,10 @@ const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken,
 }
 
 /**
- * @param {MakeRpcRequest} makeRpcRequest
  * @param {MakePayloadCidRequest} makePayloadCidRequest
  * @param {Queryable} pgPool
  */
-export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidRequest, pgPool) => {
+export const resolvePayloadCidsLoop = async (makePayloadCidRequest, pgPool) => {
   while (true) {
     const start = Date.now()
     // Maximum number of deals to resolve payload CIDs for in one loop iteration
@@ -169,7 +168,7 @@ export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidReque
 }
 
 await Promise.all([
-  resolvePayloadCidsLoop(rpcRequest, payloadCidRequest, pgPool),
+  resolvePayloadCidsLoop(payloadCidRequest, pgPool),
   observeActorEventsLoop(rpcRequest, pgPool),
   sparkApiSubmitDealsLoop(pgPool, {
     sparkApiBaseUrl: SPARK_API_BASE_URL,
