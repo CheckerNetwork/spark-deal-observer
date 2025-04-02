@@ -10,7 +10,7 @@ import {
 // @ts-ignore
 } from 'index-provider-peer-id'
 import { rpcRequest } from './rpc-service/service.js'
-import { assert } from 'node:console'
+import { assert } from 'node:assert'
 
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import { Static } from '@sinclair/typebox' */
