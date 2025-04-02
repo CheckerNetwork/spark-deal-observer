@@ -136,7 +136,7 @@ const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken,
  * @param {Queryable} pgPool
  */
 export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidRequest, pgPool) => {
-  // Initialize contract using your RPC configuration
+  // Initialize contract
   const fetchRequest = new ethers.FetchRequest(RPC_URL)
   fetchRequest.setHeader('Authorization', `Bearer ${GLIF_TOKEN}`)
   const provider = new ethers.JsonRpcProvider(fetchRequest)
