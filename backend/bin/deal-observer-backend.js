@@ -7,15 +7,9 @@ import '../lib/instrument.js'
 import { createInflux } from '../lib/telemetry.js'
 import { rpcRequest } from '../lib/rpc-service/service.js'
 import { fetchDealWithHighestActivatedEpoch, countStoredActiveDeals, observeBuiltinActorEvents } from '../lib/deal-observer.js'
-import { countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids, countRevertedActiveDeals, countStoredActiveDealsWithPayloadState } from '../lib/resolve-payload-cids.js'
+import { countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids, countRevertedActiveDeals, countStoredActiveDealsWithPayloadState, getPeerId } from '../lib/resolve-payload-cids.js'
 import { findAndSubmitUnsubmittedDeals, submitDealsToSparkApi } from '../lib/spark-api-submit-deals.js'
 import { payloadCidRequest } from '../lib/piece-indexer-service.js'
-import { ethers } from 'ethers'
-import {
-  getIndexProviderPeerId,
-  MINER_TO_PEERID_CONTRACT_ADDRESS, MINER_TO_PEERID_CONTRACT_ABI
-// @ts-ignore
-} from 'index-provider-peer-id'
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import {MakeRpcRequest, MakePayloadCidRequest} from '../lib/typings.d.ts' */
 
@@ -23,9 +17,7 @@ const {
   INFLUXDB_TOKEN,
   SPARK_API_BASE_URL,
   SPARK_API_TOKEN,
-  SPARK_API_SUBMIT_DEALS_BATCH_SIZE = 100,
-  RPC_URL,
-  GLIF_TOKEN
+  SPARK_API_SUBMIT_DEALS_BATCH_SIZE = 100
 } = process.env
 
 if (!INFLUXDB_TOKEN) {
@@ -33,7 +25,6 @@ if (!INFLUXDB_TOKEN) {
 }
 assert(SPARK_API_BASE_URL, 'SPARK_API_BASE_URL required')
 assert(SPARK_API_TOKEN, 'SPARK_API_TOKEN required')
-assert(RPC_URL, 'RPC_URL required')
 
 const LOOP_INTERVAL = 10 * 1000
 
@@ -136,22 +127,6 @@ const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken,
  * @param {Queryable} pgPool
  */
 export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidRequest, pgPool) => {
-  // Initialize contract using your RPC configuration
-  const fetchRequest = new ethers.FetchRequest(RPC_URL)
-  fetchRequest.setHeader('Authorization', `Bearer ${GLIF_TOKEN}`)
-  const provider = new ethers.JsonRpcProvider(fetchRequest)
-  const smartContract = new ethers.Contract(
-    MINER_TO_PEERID_CONTRACT_ADDRESS,
-    MINER_TO_PEERID_CONTRACT_ABI,
-    provider
-  )
-  const getPeerId = async (/** @type {number} */ minerId) => {
-    return await getIndexProviderPeerId(
-    `f0${minerId}`,
-    smartContract,
-    { rpcFn: makeRpcRequest }
-    )
-  }
   while (true) {
     const start = Date.now()
     // Maximum number of deals to resolve payload CIDs for in one loop iteration

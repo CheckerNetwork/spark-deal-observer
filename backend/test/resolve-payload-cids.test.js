@@ -9,7 +9,7 @@ import { minerPeerIds } from './test_data/minerInfo.js'
 import { payloadCIDs } from './test_data/payloadCIDs.js'
 import { Value } from '@sinclair/typebox/value'
 import { ActiveDeal, PayloadRetrievabilityState } from '@filecoin-station/deal-observer-db/lib/types.js'
-import { countStoredActiveDealsWithPayloadState, countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids } from '../lib/resolve-payload-cids.js'
+import { countStoredActiveDealsWithPayloadState, countStoredActiveDealsWithUnresolvedPayloadCid, getPeerId, resolvePayloadCids } from '../lib/resolve-payload-cids.js'
 /** @import { Static } from '@sinclair/typebox' */
 
 describe('deal-observer-backend resolve payload CIDs', () => {
@@ -302,5 +302,102 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
     await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.NotQueried)
     assert.strictEqual(missingPayloadCids, 3n)
+  })
+})
+
+describe('getPeerId', () => {
+  it('should get peer ID from smart contract when available', async () => {
+    const minerId = 123456
+    const expectedPeerId = '12D3KooWGQmdpbssrYHWFTwwbKmKL3i54EJC9j7RRNb47U9jUv1U'
+
+    // Mock the smart contract
+    const mockSmartContract = {
+      getPeerData: async () => ({
+        peerID: expectedPeerId,
+        signature: '0x1234567890abcdef'
+      })
+    }
+
+    const mockRpcRequest = async () => {
+      return { PeerId: '' }
+    }
+
+    const result = await getPeerId(minerId, {
+      smartContract: mockSmartContract,
+      makeRpcRequest: mockRpcRequest
+    })
+
+    assert.strictEqual(result.peerId, expectedPeerId)
+    assert.strictEqual(result.source, 'smartContract')
+  })
+
+  it('should fall back to RPC when smart contract returns no peer ID', async () => {
+    const minerId = 123456
+    const expectedPeerId = '12D3KooWJ91c6xQshrNe7QAXPFAaeRrHWq2UrgXGPf8UmMZMwyZ5'
+
+    // Mock the smart contract to return empty peer ID
+    const mockSmartContract = {
+      getPeerData: async () => ({
+        peerID: '',
+        signature: '0x'
+      })
+    }
+
+    // Track RPC calls
+    const mockRpcRequest = async () => {
+      return { PeerId: expectedPeerId }
+    }
+
+    const result = await getPeerId(minerId, {
+      smartContract: mockSmartContract,
+      makeRpcRequest: mockRpcRequest
+    })
+
+    // Assertions
+    assert.strictEqual(result.peerId, expectedPeerId)
+    assert.strictEqual(result.source, 'minerInfo')
+  })
+
+  it('should throw error when both sources fail', async () => {
+    const minerId = 999999
+
+    // Mock the smart contract to throw error
+    const mockSmartContract = {
+      getPeerData: async () => {
+        throw new Error('Smart contract error')
+      }
+    }
+
+    // Mock the RPC request function to throw error
+    const mockRpcRequest = async () => {
+      throw new Error('RPC error')
+    }
+    assert.rejects(
+      async () => {
+        await getPeerId(minerId, {
+          smartContract: mockSmartContract,
+          makeRpcRequest: mockRpcRequest
+        })
+      },
+      (err) => {
+        assert.ok(err instanceof Error)
+        assert.ok(err.cause?.toString().includes(`Error fetching PeerID for miner f0${minerId}`), err.toString())
+      }
+    )
+  })
+
+  // Real integration test (only run in CI or with network access)
+  it('should successfully fetch a real peer ID', async function () {
+    // Use a known valid miner ID from mainnet
+    const minerId = 3303347 // f03303347
+
+    // Get real result without mocks
+    const result = await getPeerId(minerId)
+
+    // Verify we got a valid peer ID
+    assert.strictEqual(typeof result.peerId, 'string')
+    assert.match(result.peerId, /^12D3K/, 'Peer ID should start with 12D3K')
+    assert.ok(['smartContract', 'minerInfo'].includes(result.source),
+      `Source should be 'smartContract' or 'minerInfo', got '${result.source}'`)
   })
 })

@@ -112,13 +112,3 @@ export function getActorEventsFilter (blockHeight, eventTypeString) {
     }
   }
 }
-
-/**
- * @param {number} minerId
- */
-export function getMinerInfoCallParams (minerId) {
-  return [
-    'f0' + minerId.toString(),
-    null
-  ]
-}

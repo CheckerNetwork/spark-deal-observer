@@ -1,6 +1,15 @@
 import { loadDeals } from './deal-observer.js'
 import * as util from 'node:util'
 import { PayloadRetrievabilityState } from '@filecoin-station/deal-observer-db/lib/types.js'
+import debug from 'debug'
+import { GLIF_TOKEN, RPC_URL } from './config.js'
+import { ethers } from 'ethers'
+import {
+  getIndexProviderPeerId,
+  MINER_TO_PEERID_CONTRACT_ADDRESS, MINER_TO_PEERID_CONTRACT_ABI
+// @ts-ignore
+} from 'index-provider-peer-id'
+import { rpcRequest } from './rpc-service/service.js'
 
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import { Static } from '@sinclair/typebox' */
@@ -20,7 +29,8 @@ const THREE_DAYS_IN_MILLISECONDS = 1000 * 60 * 60 * 24 * 3
 export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now()) => {
   let payloadCidsResolved = 0
   for (const deal of await fetchDealsWithUnresolvedPayloadCid(pgPool, maxDeals, new Date(now - THREE_DAYS_IN_MILLISECONDS))) {
-    const minerPeerId = (await getIndexProviderPeerId(deal.miner_id)).peerId
+    const { peerId: minerPeerId, source } = await getIndexProviderPeerId(deal.miner_id)
+    debug(`Using PeerID from ${source}.`)
     const payloadCid = await makePayloadCidRequest(minerPeerId, deal.piece_cid)
     if (payloadCid) deal.payload_cid = payloadCid
     if (!deal.payload_cid) {
@@ -105,4 +115,30 @@ async function updatePayloadCidInActiveDeal (pgPool, deal, newPayloadRetrievalSt
   } catch (error) {
     throw Error(util.format('Error updating payload of deal: ', deal), { cause: error })
   }
+}
+
+export function getSmartContractClient () {
+  const fetchRequest = new ethers.FetchRequest(RPC_URL)
+  fetchRequest.setHeader('Authorization', `Bearer ${GLIF_TOKEN}`)
+  const provider = new ethers.JsonRpcProvider(fetchRequest)
+  return new ethers.Contract(
+    MINER_TO_PEERID_CONTRACT_ADDRESS,
+    MINER_TO_PEERID_CONTRACT_ABI,
+    provider
+  )
+}
+
+/**
+ * @param {number} minerId
+ * @param {object} options
+ * @param {unknown} options.smartContract
+ * @param {import('./typings.js').MakeRpcRequest} options.makeRpcRequest
+ * @returns {Promise<{ peerId: string, source: string }>}
+ */
+export const getPeerId = async (minerId, { smartContract, makeRpcRequest } = { smartContract: getSmartContractClient(), makeRpcRequest: rpcRequest }) => {
+  return await getIndexProviderPeerId(
+  `f0${minerId}`,
+  smartContract,
+  { rpcFn: makeRpcRequest }
+  )
 }
