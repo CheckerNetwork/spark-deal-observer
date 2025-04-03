@@ -20,7 +20,7 @@
     "@ipld/dag-cbor": "^9.2.2",
     "@ipld/dag-json": "^10.2.3",
     "@sentry/node": "^9.10.1",
-    "@sinclair/typebox": "^0.34.31",
+    "@sinclair/typebox": "^0.34.33",
     "debug": "^4.4.0",
     "multiformats": "^13.3.2",
     "p-retry": "^6.2.1",
