@@ -17,5 +17,6 @@ if (RPC_URL.includes('glif') && GLIF_TOKEN) {
 export {
   RPC_URL,
   rpcHeaders,
-  PIECE_INDEXER_URL
+  PIECE_INDEXER_URL,
+  GLIF_TOKEN
 }

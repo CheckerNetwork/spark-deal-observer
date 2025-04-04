@@ -52,6 +52,7 @@ jobs:
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/spark_deal_observer
       NPM_CONFIG_WORKSPACE: backend
+      GLIF_TOKEN: ${{ secrets.GLIF_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
