@@ -36,7 +36,7 @@ describe('deal-observer-backend resolve payload CIDs', () => {
     if (!peerId) {
       throw new Error(`Peer ID not found for miner ID: ${minerId}`)
     }
-    return Promise.resolve({ peerId, source: 'TEST' })
+    return { peerId, source: 'TEST' }
   }
   /**
    * @type {import('@filecoin-station/deal-observer-db').PgPool}}
@@ -181,7 +181,7 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
   })
 
   const getPeerId = async (/** @type {number} */ minerId) => {
-    return Promise.resolve({ peerId: minerPeerId, source: 'TEST' })
+    return { peerId: minerPeerId, source: 'TEST' }
   }
 
   before(async () => {
