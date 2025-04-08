@@ -24,7 +24,7 @@ const THREE_DAYS_IN_MILLISECONDS = 1000 * 60 * 60 * 24 * 3
  * @param {import('./typings.js').MakePayloadCidRequest} makePayloadCidRequest
  * @param {Queryable} pgPool
  * @param {number} maxDeals
- * @param {number} now - The current timestamp in milliseconds
+ * @param {number} [now] The current timestamp in milliseconds
  * @returns {Promise<number>}
  */
 export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now()) => {
