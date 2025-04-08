@@ -133,7 +133,7 @@ const defaultSmartContractClient = getSmartContractClient()
 
 /**
  * @param {number} minerId
- * @param {object} options
+ * @param {object} [options]
  * @param {unknown} options.smartContract
  * @param {import('./typings.js').MakeRpcRequest} options.makeRpcRequest
  * @returns {Promise<{ peerId: string, source: string }>}
