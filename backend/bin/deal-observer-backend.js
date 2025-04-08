@@ -7,7 +7,7 @@ import '../lib/instrument.js'
 import { createInflux } from '../lib/telemetry.js'
 import { rpcRequest } from '../lib/rpc-service/service.js'
 import { fetchDealWithHighestActivatedEpoch, countStoredActiveDeals, observeBuiltinActorEvents } from '../lib/deal-observer.js'
-import { countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids, countRevertedActiveDeals, countStoredActiveDealsWithPayloadState } from '../lib/resolve-payload-cids.js'
+import { countStoredActiveDealsWithUnresolvedPayloadCid, resolvePayloadCids, countRevertedActiveDeals, countStoredActiveDealsWithPayloadState, getPeerId } from '../lib/resolve-payload-cids.js'
 import { findAndSubmitUnsubmittedDeals, submitDealsToSparkApi } from '../lib/spark-api-submit-deals.js'
 import { payloadCidRequest } from '../lib/piece-indexer-service.js'
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
@@ -122,17 +122,16 @@ const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken,
 }
 
 /**
- * @param {MakeRpcRequest} makeRpcRequest
  * @param {MakePayloadCidRequest} makePayloadCidRequest
  * @param {Queryable} pgPool
  */
-export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidRequest, pgPool) => {
+export const resolvePayloadCidsLoop = async (makePayloadCidRequest, pgPool) => {
   while (true) {
     const start = Date.now()
     // Maximum number of deals to resolve payload CIDs for in one loop iteration
     const maxDeals = 1000
     try {
-      const numOfPayloadCidsResolved = await resolvePayloadCids(makeRpcRequest, makePayloadCidRequest, pgPool, maxDeals)
+      const numOfPayloadCidsResolved = await resolvePayloadCids(getPeerId, makePayloadCidRequest, pgPool, maxDeals)
       const totalNumOfUnresolvedPayloadCids = await countStoredActiveDealsWithUnresolvedPayloadCid(pgPool)
       const totalNumOfDealsWithPayloadCidResolved = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_RESOLVED')
       const totalNumOfDealsWithPayloadCidUnresolved = await countStoredActiveDealsWithPayloadState(pgPool, 'PAYLOAD_CID_UNRESOLVED')
@@ -169,7 +168,7 @@ export const resolvePayloadCidsLoop = async (makeRpcRequest, makePayloadCidReque
 }
 
 await Promise.all([
-  resolvePayloadCidsLoop(rpcRequest, payloadCidRequest, pgPool),
+  resolvePayloadCidsLoop(payloadCidRequest, pgPool),
   observeActorEventsLoop(rpcRequest, pgPool),
   sparkApiSubmitDealsLoop(pgPool, {
     sparkApiBaseUrl: SPARK_API_BASE_URL,
