@@ -142,6 +142,9 @@ export const getPeerId = async (minerId, { smartContract, makeRpcRequest } = { s
   return await getIndexProviderPeerId(
   `f0${minerId}`,
   smartContract,
-  { rpcFn: makeRpcRequest }
+  {
+    rpcFn: makeRpcRequest,
+    signal: AbortSignal.timeout(60_000)
+  }
   )
 }

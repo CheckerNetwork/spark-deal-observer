@@ -23,7 +23,7 @@
     "@sinclair/typebox": "^0.34.33",
     "debug": "^4.4.0",
     "ethers": "^6.13.5",
-    "index-provider-peer-id": "^1.0.0",
+    "index-provider-peer-id": "^1.0.1",
     "multiformats": "^13.3.2",
     "p-retry": "^6.2.1",
     "pg": "^8.14.1",
