@@ -1,7 +1,7 @@
 import { Type } from '@sinclair/typebox'
 
 const ClaimEvent = Type.Object({
-  id: Type.Number(),
+  claimId: Type.Number(),
   client: Type.Number(),
   provider: Type.Number(),
   pieceCid: Type.String(),

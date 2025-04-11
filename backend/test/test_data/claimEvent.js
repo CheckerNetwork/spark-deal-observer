@@ -1,5 +1,5 @@
 const claimTestEvent = {
-  id: 87871691,
+  claimId: 87871691,
   client: 3297188,
   provider: 3254061,
   pieceCid: 'bafy2bzaceckgd3fyg4sdtmpul54jxcoqjygxlclde53qagvsb4wo6ggmnyhyc',
