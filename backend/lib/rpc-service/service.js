@@ -4,14 +4,16 @@ import { encode as cborEncode } from '@ipld/dag-cbor'
 import { rawEventEntriesToEvent } from './utils.js'
 import { Value } from '@sinclair/typebox/value'
 import * as util from 'node:util'
-import { ClaimEvent, RawActorEvent, BlockEvent, RpcRespone } from './data-types.js'
+import { ClaimEvent, RawActorEvent, BlockEvent, RpcResponse, ChainHead } from './data-types.js'
 import pRetry from 'p-retry'
+
 /** @import { Static } from '@sinclair/typebox' */
+/** @import {MakeRpcRequest} from '../typings.d.ts' */
 
 /**
  * @param {string} method
- * @param {Object} params
- * @returns {Promise<object>}
+ * @param {unknown[]} params
+ * @returns {Promise<unknown>}
  */
 export const rpcRequest = async (method, params) => {
   const reqBody = JSON.stringify({ method, params, id: 1, jsonrpc: '2.0' })
@@ -30,7 +32,7 @@ export const rpcRequest = async (method, params) => {
     }
     const json = await response.json()
     try {
-      const parsedRpcResponse = Value.Parse(RpcRespone, json).result
+      const parsedRpcResponse = Value.Parse(RpcResponse, json).result
       return parsedRpcResponse
     } catch (error) {
       throw Error(util.format('Failed to parse RPC response: %o', json), { cause: error })
@@ -40,12 +42,13 @@ export const rpcRequest = async (method, params) => {
   }
 }
 /**
- * @param {object} actorEventFilter
+ * @param {{fromHeight:number,toHeight:number,fields: unknown}} actorEventFilter
  * Returns actor events filtered by the given actorEventFilter
+ * @param {MakeRpcRequest} makeRpcRequest
  * @returns {Promise<Array<Static<typeof BlockEvent>>>}
  */
 export async function getActorEvents (actorEventFilter, makeRpcRequest) {
-  const rawEvents = await makeRpcRequest('Filecoin.GetActorEventsRaw', [actorEventFilter])
+  const rawEvents = /** @type {unknown[]} */(await makeRpcRequest('Filecoin.GetActorEventsRaw', [actorEventFilter]))
   if (!rawEvents || rawEvents.length === 0) {
     console.debug(`No actor events found in the height range ${actorEventFilter.fromHeight} - ${actorEventFilter.toHeight}.`)
     return []
@@ -81,28 +84,15 @@ export async function getActorEvents (actorEventFilter, makeRpcRequest) {
 }
 
 /**
- * @param {function} makeRpcRequest
- * @returns {Promise<object>}
+ * @param {MakeRpcRequest} makeRpcRequest
+ * @returns {Promise<Static<typeof ChainHead>>}
  */
 export async function getChainHead (makeRpcRequest) {
-  return await makeRpcRequest('Filecoin.ChainHead', [])
-}
-
-/**
- * @param {number} minerId
- * @param {function} makeRpcRequest
- * @returns {Promise<string>}
- */
-export async function getMinerPeerId (minerId, makeRpcRequest) {
+  const result = await makeRpcRequest('Filecoin.ChainHead', [])
   try {
-    const params = getMinerInfoCallParams(minerId)
-    const res = await makeRpcRequest('Filecoin.StateMinerInfo', params)
-    if (!res || !res.PeerId) {
-      throw Error(`Failed to get peer ID for miner ${minerId}, result: ${res}`)
-    }
-    return res.PeerId
-  } catch (err) {
-    throw Error(`Failed to get peer ID for miner ${minerId}.`, { cause: err })
+    return Value.Parse(ChainHead, result)
+  } catch (e) {
+    throw Error(util.format('Failed to parse chain head: %o', result))
   }
 }
 
@@ -121,14 +111,4 @@ export function getActorEventsFilter (blockHeight, eventTypeString) {
         [{ Codec: 81, Value: base64pad.baseEncode(cborEncode(eventTypeString)) }]
     }
   }
-}
-
-/**
- * @param {number} minerId
- */
-export function getMinerInfoCallParams (minerId) {
-  return [
-    'f0' + minerId.toString(),
-    null
-  ]
 }

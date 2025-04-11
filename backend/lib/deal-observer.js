@@ -1,14 +1,15 @@
-/** @import {Queryable} from '@filecoin-station/deal-observer-db' */
-/** @import { Static } from '@sinclair/typebox' */
-
 import { getActorEvents, getActorEventsFilter, getChainHead } from './rpc-service/service.js'
 import { ActiveDealDbEntry } from '@filecoin-station/deal-observer-db/lib/types.js'
 import { Value } from '@sinclair/typebox/value'
-import { convertBlockEventToActiveDealDbEntry } from './utils.js'
+import { convertBlockEventToActiveDeal } from './utils.js'
+/** @import {Queryable, QueryResultWithUnknownRows} from '@filecoin-station/deal-observer-db' */
+/** @import { Static } from '@sinclair/typebox' */
+/** @import {MakeRpcRequest} from './typings.d.ts' */
+/** @import {ActiveDeal} from '@filecoin-station/deal-observer-db/lib/types.js' */
 
 /**
  * @param {Queryable} pgPool
- * @param {(method:string,params:any[]) => Promise<any>} makeRpcRequest
+ * @param {MakeRpcRequest} makeRpcRequest
  * @param {number} maxPastEpochs
  * @param {number} finalityEpochs
  * @returns {Promise<void>}
@@ -18,7 +19,7 @@ export const observeBuiltinActorEvents = async (pgPool, makeRpcRequest, maxPastE
   const lastInsertedDeal = await fetchDealWithHighestActivatedEpoch(pgPool)
   const startEpoch = Math.max(
     currentChainHead.Height - maxPastEpochs,
-    (lastInsertedDeal?.activated_at_epoch + 1) || 0
+    (lastInsertedDeal?.activated_at_epoch ?? -1) + 1
   )
   const endEpoch = currentChainHead.Height - finalityEpochs
   for (let epoch = startEpoch; epoch <= endEpoch; epoch++) {
@@ -29,13 +30,13 @@ export const observeBuiltinActorEvents = async (pgPool, makeRpcRequest, maxPastE
 /**
  * @param {number} blockHeight
  * @param {Queryable} pgPool
- * @param {(method:string,params:any[]) => Promise<any>} makeRpcRequest
+ * @param {MakeRpcRequest} makeRpcRequest
  */
 export const fetchAndStoreActiveDeals = async (blockHeight, pgPool, makeRpcRequest) => {
   const eventType = 'claim'
   const blockEvents = await getActorEvents(getActorEventsFilter(blockHeight, eventType), makeRpcRequest)
   console.log(`Fetched ${blockEvents.length} ${eventType} events from block ${blockHeight}`)
-  await storeActiveDeals(blockEvents.map((event) => convertBlockEventToActiveDealDbEntry(event)), pgPool)
+  await storeActiveDeals(blockEvents.map((event) => convertBlockEventToActiveDeal(event)), pgPool)
 }
 
 /**
@@ -59,7 +60,7 @@ export async function countStoredActiveDeals (pgPool) {
 }
 
 /**
- * @param {Static<typeof ActiveDealDbEntry >[]} activeDeals
+ * @param {Static<typeof ActiveDeal >[]} activeDeals
  * @param {Queryable} pgPool
  * @returns {Promise<void>}
  * */
@@ -123,11 +124,13 @@ export async function storeActiveDeals (activeDeals, pgPool) {
 /**
    * @param {Queryable} pgPool
    * @param {string} query
-   * @param {Array} args
+   * @param {Array<unknown>} args
    * @returns {Promise<Array<Static <typeof ActiveDealDbEntry>>>}
    */
 export async function loadDeals (pgPool, query, args = []) {
-  const result = (await pgPool.query(query, args)).rows.map(deal => {
+  /** @type {QueryResultWithUnknownRows} */
+  const { rows } = await pgPool.query(query, args)
+  const result = rows.map((deal) => {
     // SQL used null, typebox needs undefined for null values
     Object.keys(deal).forEach(key => {
       if (deal[key] === null) {

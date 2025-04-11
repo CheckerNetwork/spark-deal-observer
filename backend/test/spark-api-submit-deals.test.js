@@ -4,7 +4,12 @@ import { createPgPool, migrateWithPgClient } from '@filecoin-station/deal-observ
 import { calculateActiveDealEpochs, daysAgo, daysFromNow, today } from './test-helpers.js'
 import { findAndSubmitUnsubmittedDeals } from '../lib/spark-api-submit-deals.js'
 
+/** @import {PgPool, Queryable, QueryResultWithUnknownRows} from '@filecoin-station/deal-observer-db' */
+
 describe('Submit deals to spark-api', () => {
+  /**
+   * @type {PgPool}
+   */
   let pgPool
 
   before(async () => {
@@ -34,6 +39,7 @@ describe('Submit deals to spark-api', () => {
     const mockSubmitEligibleDeals = createSubmitEligibleDealsMock()
 
     const { submitted, ingested, skipped } = await findAndSubmitUnsubmittedDeals(pgPool, batchSize, mockSubmitEligibleDeals)
+    /** @type {QueryResultWithUnknownRows} */
     const { rows } = await pgPool.query('SELECT * FROM active_deals WHERE submitted_at IS NOT NULL')
     assert.strictEqual(submitted, 2)
     assert.strictEqual(ingested, 2)
@@ -48,6 +54,7 @@ describe('Submit deals to spark-api', () => {
 
     // two deals are eligible for submission, batchSize is 1
     const { submitted, ingested, skipped } = await findAndSubmitUnsubmittedDeals(pgPool, batchSize, mockSubmitEligibleDeals)
+    /** @type {QueryResultWithUnknownRows} */
     const { rows } = await pgPool.query('SELECT * FROM active_deals WHERE submitted_at IS NOT NULL')
     assert.strictEqual(submitted, 2)
     assert.strictEqual(ingested, 2)
@@ -65,6 +72,7 @@ describe('Submit deals to spark-api', () => {
 
     // two deals are eligible for submission, batchSize is 1
     const { submitted, ingested, skipped } = await findAndSubmitUnsubmittedDeals(pgPool, batchSize, mockSubmitEligibleDeals)
+    /** @type {QueryResultWithUnknownRows} */
     const { rows } = await pgPool.query('SELECT * FROM active_deals WHERE submitted_at IS NOT NULL')
     assert.strictEqual(submitted, 1)
     assert.strictEqual(ingested, 1)
@@ -82,6 +90,7 @@ describe('Submit deals to spark-api', () => {
 
     // two deals are eligible for submission, batchSize is 1
     const { submitted, ingested, skipped } = await findAndSubmitUnsubmittedDeals(pgPool, batchSize, mockSubmitEligibleDeals)
+    /** @type {QueryResultWithUnknownRows} */
     const { rows } = await pgPool.query('SELECT * FROM active_deals WHERE submitted_at IS NOT NULL')
     assert.strictEqual(submitted, 2)
     assert.strictEqual(ingested, 1)
@@ -91,6 +100,19 @@ describe('Submit deals to spark-api', () => {
   })
 })
 
+/**
+ * @param {Queryable} pgPool
+ * @param {Object} activeDeal
+ * @param {string} activeDeal.createdAt
+ * @param {string} activeDeal.startsAt
+ * @param {string} activeDeal.expiresAt
+ * @param {number} [activeDeal.minerId=2]
+ * @param {number} [activeDeal.clientId=3]
+ * @param {string} [activeDeal.pieceCid='cidone']
+ * @param {string | null} [activeDeal.payloadCid=null]
+ * @param {boolean} [activeDeal.reverted=false]
+ * @returns {Promise<void>}
+ */
 const givenActiveDeal = async (pgPool, { createdAt, startsAt, expiresAt, minerId = 2, clientId = 3, pieceCid = 'cidone', payloadCid = null, reverted = false }) => {
   const { activatedAtEpoch, termStart, termMin, termMax } = calculateActiveDealEpochs(createdAt, startsAt, expiresAt)
   await pgPool.query(
@@ -103,12 +125,7 @@ const givenActiveDeal = async (pgPool, { createdAt, startsAt, expiresAt, minerId
 
 // TODO: allow callers of this helper to define how many deals should be reported as skipped
 const createSubmitEligibleDealsMock = () => {
-  return mock.fn(
-    // original - unused param
-    () => {},
-    // implementation
-    async (deals) => {
-      return { ingested: deals.length, skipped: 0 }
-    }
-  )
+  return mock.fn(async (deals) => {
+    return { ingested: deals.length, skipped: 0 }
+  })
 }

@@ -3,6 +3,10 @@ import createDebug from 'debug'
 
 const debug = createDebug('spark:deal-observer:telemetry')
 
+/**
+ * @param {string | undefined} token
+ * @returns {{influx: InfluxDB,recordTelemetry: (name: string, fn: (p: Point) => void) => void}}
+  */
 export const createInflux = token => {
   const influx = new InfluxDB({
     url: 'https://eu-central-1-1.aws.cloud2.influxdata.com',

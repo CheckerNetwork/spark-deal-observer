@@ -9,6 +9,9 @@
     "test": "node --test --test-reporter=spec --test-concurrency=1"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.12",
+    "@types/pg-cursor": "^2.7.2",
+    "@types/slug": "^5.0.9",
     "standard": "^17.1.2"
   },
   "dependencies": {
@@ -16,12 +19,14 @@
     "@influxdata/influxdb-client": "^1.35.0",
     "@ipld/dag-cbor": "^9.2.2",
     "@ipld/dag-json": "^10.2.3",
-    "@sentry/node": "^9.1.0",
-    "@sinclair/typebox": "^0.34.28",
+    "@sentry/node": "^9.12.0",
+    "@sinclair/typebox": "^0.34.33",
     "debug": "^4.4.0",
+    "ethers": "^6.13.5",
+    "index-provider-peer-id": "^1.0.1",
     "multiformats": "^13.3.2",
     "p-retry": "^6.2.1",
-    "pg": "^8.13.3",
-    "pg-cursor": "^2.12.3"
+    "pg": "^8.14.1",
+    "pg-cursor": "^2.13.1"
   }
 }

@@ -24,8 +24,8 @@ const RawActorEvent = Type.Object({
   entries: Type.Array(Entry),
   height: Type.Number(),
   reverted: Type.Boolean(),
-  msgCid: Type.Any(),
-  tipsetKey: Type.Array(Type.Any())
+  msgCid: Type.Unknown(),
+  tipsetKey: Type.Array(Type.Unknown())
 })
 
 const BlockEvent = Type.Object({
@@ -35,8 +35,14 @@ const BlockEvent = Type.Object({
   reverted: Type.Boolean()
 })
 
-const RpcRespone = Type.Object({
-  result: Type.Any()
+const RpcResponse = Type.Object({
+  result: Type.Unknown()
+})
+
+const ChainHead = Type.Object({
+  Height: Type.Number(),
+  Blocks: Type.Unknown(),
+  Cids: Type.Unknown()
 })
 
 export {
@@ -44,5 +50,6 @@ export {
   Entry,
   RawActorEvent,
   BlockEvent,
-  RpcRespone
+  RpcResponse,
+  ChainHead
 }

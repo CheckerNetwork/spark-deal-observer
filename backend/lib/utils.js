@@ -1,15 +1,15 @@
 /** @import { BlockEvent } from './rpc-service/data-types.js' */
-import { ActiveDealDbEntry, PayloadRetrievabilityState } from '@filecoin-station/deal-observer-db/lib/types.js'
+import { ActiveDeal, PayloadRetrievabilityState } from '@filecoin-station/deal-observer-db/lib/types.js'
 import { Value } from '@sinclair/typebox/value'
 /** @import { Static } from '@sinclair/typebox' */
 
 /**
  *
  * @param {Static <typeof BlockEvent>} blockEvent
- * @returns { Static < typeof ActiveDealDbEntry> }
+ * @returns { Static < typeof ActiveDeal> }
  */
-export function convertBlockEventToActiveDealDbEntry (blockEvent) {
-  return Value.Parse(ActiveDealDbEntry, {
+export function convertBlockEventToActiveDeal (blockEvent) {
+  return Value.Parse(ActiveDeal, {
     activated_at_epoch: blockEvent.height,
     miner_id: blockEvent.event.provider,
     client_id: blockEvent.event.client,
