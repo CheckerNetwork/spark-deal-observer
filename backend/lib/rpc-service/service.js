@@ -6,6 +6,7 @@ import { Value } from '@sinclair/typebox/value'
 import * as util from 'node:util'
 import { ClaimEvent, RawActorEvent, BlockEvent, RpcResponse, ChainHead } from './data-types.js'
 import pRetry from 'p-retry'
+import assert from 'node:assert'
 
 /** @import { Static } from '@sinclair/typebox' */
 /** @import {MakeRpcRequest} from '../typings.d.ts' */
@@ -64,7 +65,8 @@ export async function getActorEvents (actorEventFilter, makeRpcRequest) {
     let typedEvent
     switch (eventType) {
       case 'claim': {
-        typedEvent = Value.Parse(ClaimEvent, event)
+        assert.ok('id' in event, 'Claim event must have an id')
+        typedEvent = Value.Parse(ClaimEvent, { claimId: event.id, ...event })
         emittedEvents.push(
           Value.Parse(BlockEvent,
             {

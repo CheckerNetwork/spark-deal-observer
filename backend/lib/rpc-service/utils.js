@@ -44,11 +44,7 @@ const rawEventEntriesToEvent = (rawEventEntries) => {
         value)
       )
     }
-    if (key === 'id') {
-      event.claimId = value
-    } else {
-      event[key] = value
-    }
+    event[key] = value
   }
   if (!eventType) {
     throw new Error(util.format('No event type found in the raw event entries. Event entries: %o', event))
