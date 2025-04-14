@@ -57,6 +57,7 @@ const findUnsubmittedDeals = async function * (pgPool, batchSize) {
         SELECT (NOW() - INTERVAL '2 days')::TIMESTAMP AS ts
     )
     SELECT
+        id,
         miner_id,
         client_id,
         piece_cid,
@@ -93,7 +94,7 @@ const markDealsAsSubmitted = async (pgPool, dealIds) => {
     SET submitted_at = NOW()
     FROM (
       SELECT
-        unnest($1::INT[]) AS id,
+        unnest($1::INT[]) AS id
     ) AS t
     WHERE ad.id = t.id
   `, [
