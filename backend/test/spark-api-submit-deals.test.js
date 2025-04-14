@@ -6,7 +6,7 @@ import { findAndSubmitUnsubmittedDeals } from '../lib/spark-api-submit-deals.js'
 
 /** @import {PgPool, Queryable, QueryResultWithUnknownRows} from '@filecoin-station/deal-observer-db' */
 
-describe('Submit deals to spark-api', () => {
+describe('Deal Submitter loop', () => {
   /**
    * @type {PgPool}
    */

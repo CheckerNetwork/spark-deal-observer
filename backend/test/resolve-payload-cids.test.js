@@ -12,7 +12,7 @@ import { ActiveDeal, PayloadRetrievabilityState } from '@filecoin-station/deal-o
 import { countStoredActiveDealsWithPayloadState, countStoredActiveDealsWithUnresolvedPayloadCid, getPeerId, resolvePayloadCids } from '../lib/resolve-payload-cids.js'
 /** @import { Static } from '@sinclair/typebox' */
 
-describe('deal-observer-backend resolve payload CIDs', () => {
+describe('Payload CIDs resolver', () => {
   /**
    * @type {import('../lib/typings.d.ts').MakeRpcRequest}
    * */
@@ -38,22 +38,7 @@ describe('deal-observer-backend resolve payload CIDs', () => {
     }
     return { peerId, source: 'TEST' }
   }
-  /**
-   * @type {import('@filecoin-station/deal-observer-db').PgPool}}
-   *  */
-  let pgPool
-  before(async () => {
-    pgPool = await createPgPool()
-    await migrateWithPgClient(pgPool)
-  })
-
-  after(async () => {
-    await pgPool.end()
-  })
-
-  beforeEach(async () => {
-    await pgPool.query('DELETE FROM active_deals')
-    await pgPool.query('ALTER SEQUENCE active_deals_id_seq RESTART WITH 1')
+  const loadTestEventData = async () => {
     const startEpoch = 4622129
     for (let blockHeight = startEpoch; blockHeight < startEpoch + 10; blockHeight++) {
       await fetchAndStoreActiveDeals(blockHeight, pgPool, makeRpcRequest)
@@ -62,58 +47,12 @@ describe('deal-observer-backend resolve payload CIDs', () => {
       (await pgPool.query('SELECT * FROM active_deals')).rows.length,
       336
     )
-  })
+  }
 
-  it('piece indexer loop function fetches deals where there exists no payload yet and updates the database entry', async () => {
-    const resolvePayloadCidCalls = []
-    /**
-     * @type {import('../lib/typings.d.ts').MakePayloadCidRequest}
-     * */
-    const makePayloadCidRequest = async (providerId, pieceCid) => {
-      resolvePayloadCidCalls.push({ providerId, pieceCid })
-      const payloadCid = payloadCIDs.get(JSON.stringify({ minerId: providerId, pieceCid }))
-      return payloadCid ? payloadCid.payloadCid : null
-    }
-
-    assert.strictEqual(
-      (await pgPool.query('SELECT * FROM active_deals WHERE payload_cid IS NULL')).rows.length,
-      336
-    )
-    await resolvePayloadCids(getPeerId, makePayloadCidRequest, pgPool, 10000)
-    assert.strictEqual(resolvePayloadCidCalls.length, 336)
-    assert.strictEqual(
-      (await pgPool.query('SELECT * FROM active_deals WHERE payload_cid IS NULL')).rows.length,
-      85 // Not all deals have a payload CID in the test data
-    )
-  })
-
-  it('piece indexer count number of unresolved payload CIDs', async () => {
-    let unresolvedPayloadCids = await countStoredActiveDealsWithUnresolvedPayloadCid(pgPool)
-    assert.strictEqual(unresolvedPayloadCids, 336n)
-    const resolvePayloadCidCalls = []
-    /**
-     * @type {import('../lib/typings.d.ts').MakePayloadCidRequest}
-     * */
-    const resolvePayloadCid = async (providerId, pieceCid) => {
-      resolvePayloadCidCalls.push({ providerId, pieceCid })
-      const payloadCid = payloadCIDs.get(JSON.stringify({ minerId: providerId, pieceCid }))
-      return payloadCid ? payloadCid.payloadCid : null
-    }
-
-    await resolvePayloadCids(getPeerId, resolvePayloadCid, pgPool, 10000)
-    unresolvedPayloadCids = await countStoredActiveDealsWithUnresolvedPayloadCid(pgPool)
-    assert.strictEqual(unresolvedPayloadCids, 85n)
-  })
-})
-
-describe('deal-observer-backend piece indexer payload retrieval', () => {
-  /**
-   * @type {import('@filecoin-station/deal-observer-db').PgPool}
-   */
-  let pgPool
   const payloadCid = 'PAYLOAD_CID'
   const minerPeerId = 'MINER_PEER_ID'
   const now = Date.now()
+
   /**
   * @param {Static<typeof ActiveDeal >[]} activeDeals
   **/
@@ -180,10 +119,14 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
     reverted: false
   })
 
-  const getPeerId = async (/** @type {number} */ minerId) => {
+  const getConstantPeerId = async () => {
     return { peerId: minerPeerId, source: 'TEST' }
   }
 
+  /**
+   * @type {import('@filecoin-station/deal-observer-db').PgPool}}
+   *  */
+  let pgPool
   before(async () => {
     pgPool = await createPgPool()
     await migrateWithPgClient(pgPool)
@@ -197,7 +140,50 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
     await pgPool.query('DELETE FROM active_deals')
     await pgPool.query('ALTER SEQUENCE active_deals_id_seq RESTART WITH 1')
   })
-  it('piece indexer does not retry to fetch unresolved payloads if the last retrieval was too recent', async () => {
+
+  it('fetches deals where there exists no payload yet and updates the database entry', async () => {
+    const resolvePayloadCidCalls = []
+    /**
+     * @type {import('../lib/typings.d.ts').MakePayloadCidRequest}
+     * */
+    const makePayloadCidRequest = async (providerId, pieceCid) => {
+      resolvePayloadCidCalls.push({ providerId, pieceCid })
+      const payloadCid = payloadCIDs.get(JSON.stringify({ minerId: providerId, pieceCid }))
+      return payloadCid ? payloadCid.payloadCid : null
+    }
+    await loadTestEventData()
+    assert.strictEqual(
+      (await pgPool.query('SELECT * FROM active_deals WHERE payload_cid IS NULL')).rows.length,
+      336
+    )
+    await resolvePayloadCids(getPeerId, makePayloadCidRequest, pgPool, 10000)
+    assert.strictEqual(resolvePayloadCidCalls.length, 336)
+    assert.strictEqual(
+      (await pgPool.query('SELECT * FROM active_deals WHERE payload_cid IS NULL')).rows.length,
+      85 // Not all deals have a payload CID in the test data
+    )
+  })
+
+  it('counts number of unresolved payload CIDs correctly', async () => {
+    await loadTestEventData()
+    let unresolvedPayloadCids = await countStoredActiveDealsWithUnresolvedPayloadCid(pgPool)
+    assert.strictEqual(unresolvedPayloadCids, 336n)
+    const resolvePayloadCidCalls = []
+    /**
+     * @type {import('../lib/typings.d.ts').MakePayloadCidRequest}
+     * */
+    const resolvePayloadCid = async (providerId, pieceCid) => {
+      resolvePayloadCidCalls.push({ providerId, pieceCid })
+      const payloadCid = payloadCIDs.get(JSON.stringify({ minerId: providerId, pieceCid }))
+      return payloadCid ? payloadCid.payloadCid : null
+    }
+
+    await resolvePayloadCids(getPeerId, resolvePayloadCid, pgPool, 10000)
+    unresolvedPayloadCids = await countStoredActiveDealsWithUnresolvedPayloadCid(pgPool)
+    assert.strictEqual(unresolvedPayloadCids, 85n)
+  })
+
+  it('does not retry to fetch unresolved payloads if the last retrieval was too recent', async () => {
     const returnPayload = false
     let payloadsCalled = 0
     const resolvePayloadCid = async () => {
@@ -209,18 +195,18 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
     const expectedDealDbEntry = { id: 1, ...DEFAULT_ACTIVE_DEAL }
     assert.deepStrictEqual((await loadDeals(pgPool, 'SELECT * FROM active_deals')), [expectedDealDbEntry])
     // The payload is unretrievable and the last retrieval timestamp should be updated
-    await resolvePayloadCids(getPeerId, resolvePayloadCid, pgPool, 10000, now)
+    await resolvePayloadCids(getConstantPeerId, resolvePayloadCid, pgPool, 10000, now)
     // The timestamp on when the last retrieval of the payload was, was not yet set, so the piece indexer will try to fetch the payload
     assert.strictEqual(payloadsCalled, 1)
     expectedDealDbEntry.last_payload_retrieval_attempt = new Date(now)
     expectedDealDbEntry.payload_retrievability_state = PayloadRetrievabilityState.Unresolved
     assert.deepStrictEqual((await loadDeals(pgPool, 'SELECT * FROM active_deals')), [expectedDealDbEntry])
     // If we retry now without changing the field last_payload_retrieval_attempt the function for calling payload should not be called
-    await resolvePayloadCids(getPeerId, resolvePayloadCid, pgPool, 10000, now)
+    await resolvePayloadCids(getConstantPeerId, resolvePayloadCid, pgPool, 10000, now)
     assert.strictEqual(payloadsCalled, 1)
   })
 
-  it('piece indexer sets the payload to be unresolvable if the second attempt fails', async () => {
+  it('sets the payload to be unresolvable if the second attempt fails', async () => {
     const returnPayload = false
     let payloadsCalled = 0
     const resolvePayloadCid = async () => {
@@ -234,7 +220,7 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
     })
 
     await withUniqueActiveDeals([deal])
-    await resolvePayloadCids(getPeerId, resolvePayloadCid, pgPool, 10000, now)
+    await resolvePayloadCids(getConstantPeerId, resolvePayloadCid, pgPool, 10000, now)
     assert.strictEqual(payloadsCalled, 1)
     // This is the second attempt that failed to fetch the payload CID so the deal should be marked as unretrievable
     const expectedDealDbEntry = {
@@ -245,11 +231,11 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
     }
     assert.deepStrictEqual((await loadDeals(pgPool, 'SELECT * FROM active_deals')), [expectedDealDbEntry])
     // Now the piece indexer should no longer call the payload request for this deal
-    await resolvePayloadCids(getPeerId, resolvePayloadCid, pgPool, 10000, now)
+    await resolvePayloadCids(getConstantPeerId, resolvePayloadCid, pgPool, 10000, now)
     assert.strictEqual(payloadsCalled, 1)
   })
 
-  it('piece indexer correctly udpates the payloads if the retry succeeds', async () => {
+  it('correctly updates the payloads if the retry succeeds', async () => {
     const returnPayload = true
     let payloadsCalled = 0
     const resolvePayloadCid = async () => {
@@ -263,7 +249,7 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
     })
 
     await withUniqueActiveDeals([deal])
-    await resolvePayloadCids(getPeerId, resolvePayloadCid, pgPool, 10000, now)
+    await resolvePayloadCids(getConstantPeerId, resolvePayloadCid, pgPool, 10000, now)
     assert.strictEqual(payloadsCalled, 1)
     const expectedDealDbEntry = {
       id: 1,
@@ -276,29 +262,29 @@ describe('deal-observer-backend piece indexer payload retrieval', () => {
     assert.deepStrictEqual((await loadDeals(pgPool, 'SELECT * FROM active_deals')), [expectedDealDbEntry])
 
     // Now the piece indexer should no longer call the payload request for this deal
-    await resolvePayloadCids(getPeerId, resolvePayloadCid, pgPool, 10000, now)
+    await resolvePayloadCids(getConstantPeerId, resolvePayloadCid, pgPool, 10000, now)
     assert.strictEqual(payloadsCalled, 1)
   })
 
-  it('piece indexer count number of resolved paylod CIDs', async () => {
+  it('counts number of resolved payload CIDs', async () => {
     await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.Resolved }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.Resolved)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
-  it('piece indexer count number of unresolved paylod CIDs', async () => {
+  it('counts number of unresolved payload CIDs', async () => {
     await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.Unresolved }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.Unresolved)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
-  it('piece indexer count number of terminally unretrievable paylod CIDs', async () => {
+  it('counts number of terminally unretrievable payload CIDs', async () => {
     await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_cid: 'PAYLOAD_CID', payload_retrievability_state: PayloadRetrievabilityState.TerminallyUnretrievable }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.TerminallyUnretrievable)
     assert.strictEqual(missingPayloadCids, 2n)
   })
 
-  it('piece indexer count number of not yet querried paylod CIDs', async () => {
+  it('counts number of not yet queried payload CIDs', async () => {
     await withUniqueActiveDeals([DEFAULT_ACTIVE_DEAL, { ...DEFAULT_ACTIVE_DEAL, miner_id: 2, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }, { ...DEFAULT_ACTIVE_DEAL, miner_id: 3, payload_retrievability_state: PayloadRetrievabilityState.NotQueried }])
     const missingPayloadCids = await countStoredActiveDealsWithPayloadState(pgPool, PayloadRetrievabilityState.NotQueried)
     assert.strictEqual(missingPayloadCids, 3n)
