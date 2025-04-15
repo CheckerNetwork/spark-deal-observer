@@ -20,7 +20,7 @@ export const findAndSubmitUnsubmittedDeals = async (pgPool, batchSize, submitDea
     try {
       const { ingested, skipped } = await submitDeals(deals)
       console.log(`Successfully submitted ${deals.length} deals. ${ingested} deals were added, ${skipped} were skipped.`)
-      await markDealsAsSubmitted(pgPool, deals)
+      await markDealsAsSubmitted(pgPool, deals.map(deal => deal.id))
       result.submitted += deals.length
       result.ingested += ingested
       result.skipped += skipped
@@ -57,6 +57,7 @@ const findUnsubmittedDeals = async function * (pgPool, batchSize) {
         SELECT (NOW() - INTERVAL '2 days')::TIMESTAMP AS ts
     )
     SELECT
+        id,
         miner_id,
         client_id,
         piece_cid,
@@ -85,28 +86,19 @@ const findUnsubmittedDeals = async function * (pgPool, batchSize) {
  * Mark deals as submitted.
  *
  * @param {Queryable} pgPool
- * @param {Array<Static<typeof SubmittableDeal>>} eligibleDeals
+ * @param {Array<number>} dealIds
  */
-const markDealsAsSubmitted = async (pgPool, eligibleDeals) => {
+const markDealsAsSubmitted = async (pgPool, dealIds) => {
   await pgPool.query(`
     UPDATE active_deals ad
     SET submitted_at = NOW()
     FROM (
       SELECT
-        unnest($1::INT[]) AS miner_id,
-        unnest($2::INT[]) AS client_id,
-        unnest($3::TEXT[]) AS piece_cid,
-        unnest($4::BIGINT[]) AS piece_size
+        unnest($1::INT[]) AS id
     ) AS t
-    WHERE ad.miner_id = t.miner_id
-      AND ad.client_id = t.client_id
-      AND ad.piece_cid = t.piece_cid
-      AND ad.piece_size = t.piece_size
+    WHERE ad.id = t.id
   `, [
-    eligibleDeals.map(deal => deal.miner_id),
-    eligibleDeals.map(deal => deal.client_id),
-    eligibleDeals.map(deal => deal.piece_cid),
-    eligibleDeals.map(deal => deal.piece_size)
+    dealIds
   ])
 }
 
@@ -152,6 +144,7 @@ export const submitDealsToSparkApi = async (sparkApiBaseURL, sparkApiToken, deal
 }
 
 const SubmittableDeal = Type.Object({
+  id: Type.Number(),
   miner_id: Type.Number(),
   client_id: Type.Number(),
   piece_cid: Type.String(),
