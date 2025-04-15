@@ -48,7 +48,7 @@ describe('RpcApiClient', () => {
       })
     })
   }
-  it('smoketest for testing the real rpc api endpoint', async () => {
+  it('can successfully fetch actor events and the chain head from the real rpc api endpoint', async () => {
     const chainHead = await getChainHead(rpcRequest)
     assert(chainHead)
     const actorEvents = await getActorEvents(getActorEventsFilter(chainHead.Height - 1000, 'claim'), rpcRequest)
