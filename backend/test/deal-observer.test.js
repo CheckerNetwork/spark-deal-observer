@@ -61,7 +61,7 @@ describe('deal-observer-backend', () => {
     }
     assert.deepStrictEqual(actualData, [expectedData])
   })
-  it('check retrieval of last stored deal', async () => {
+  it('checks retrieval of last stored deal', async () => {
     const eventData = {
       claimId: 1,
       provider: 2,
@@ -84,7 +84,7 @@ describe('deal-observer-backend', () => {
     assert.deepStrictEqual(expected, [actual])
   })
 
-  it('check number of stored deals', async () => {
+  it('checks number of stored deals', async () => {
     /**
      * @param {Static<typeof ClaimEvent>} eventData
      */
@@ -177,7 +177,7 @@ describe('deal-observer-backend', () => {
     // Only one of the events will be stored in the database
     assert.strictEqual(actual.length, 1)
   })
-  it('check number of reverted stored deals', async () => {
+  it('checks number of reverted stored deals', async () => {
     /**
      * @param {Static<typeof ClaimEvent>} eventData
      * @param {boolean} reverted
