@@ -26,7 +26,7 @@
     "index-provider-peer-id": "^1.0.1",
     "multiformats": "^13.3.2",
     "p-retry": "^6.2.1",
-    "pg": "^8.15.1",
+    "pg": "^8.15.5",
     "pg-cursor": "^2.14.1"
   }
 }
