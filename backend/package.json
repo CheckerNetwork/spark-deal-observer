@@ -24,7 +24,7 @@
     "debug": "^4.4.0",
     "ethers": "^6.14.0",
     "index-provider-peer-id": "^1.0.1",
-    "multiformats": "^13.3.2",
+    "multiformats": "^13.3.3",
     "p-retry": "^6.2.1",
     "pg": "^8.15.6",
     "pg-cursor": "^2.14.6"
