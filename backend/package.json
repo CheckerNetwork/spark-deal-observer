@@ -21,7 +21,7 @@
     "@ipld/dag-json": "^10.2.3",
     "@sentry/node": "^9.18.0",
     "@sinclair/typebox": "^0.34.33",
-    "debug": "^4.4.0",
+    "debug": "^4.4.1",
     "ethers": "^6.14.0",
     "index-provider-peer-id": "^1.0.1",
     "multiformats": "^13.3.3",
