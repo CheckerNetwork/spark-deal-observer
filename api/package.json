@@ -16,7 +16,7 @@
     "@filecoin-station/deal-observer-db": "^1.0.0",
     "@sentry/node": "^9.18.0",
     "@sentry/profiling-node": "^9.18.0",
-    "debug": "^4.4.0",
+    "debug": "^4.4.1",
     "fastify": "^5.3.2",
     "http-assert": "^1.5.0",
     "pg": "^8.16.0"
