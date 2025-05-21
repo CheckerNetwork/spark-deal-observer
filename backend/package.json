@@ -18,7 +18,7 @@
     "@filecoin-station/deal-observer-db": "^1.0.0",
     "@influxdata/influxdb-client": "^1.35.0",
     "@ipld/dag-cbor": "^9.2.2",
-    "@ipld/dag-json": "^10.2.3",
+    "@ipld/dag-json": "^10.2.4",
     "@sentry/node": "^9.22.0",
     "@sinclair/typebox": "^0.34.33",
     "debug": "^4.4.1",
