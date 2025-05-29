@@ -14,8 +14,8 @@
   "dependencies": {
     "@fastify/postgres": "^6.0.2",
     "@filecoin-station/deal-observer-db": "^1.0.0",
-    "@sentry/node": "^9.22.0",
-    "@sentry/profiling-node": "^9.22.0",
+    "@sentry/node": "^9.23.0",
+    "@sentry/profiling-node": "^9.23.0",
     "debug": "^4.4.1",
     "fastify": "^5.3.3",
     "http-assert": "^1.5.0",
