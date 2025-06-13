@@ -35,7 +35,7 @@ describe('deal-observer-backend', () => {
     const event = Value.Parse(BlockEvent, {
       height: 1,
       event: {
-        id: 1,
+        claimId: 1,
         provider: 2,
         client: 3,
         pieceCid: 'baga6ea4seaqc4z4432snwkztsadyx2rhoa6rx3wpfzu26365wvcwlb2wyhb5yfi',
@@ -61,9 +61,9 @@ describe('deal-observer-backend', () => {
     }
     assert.deepStrictEqual(actualData, [expectedData])
   })
-  it('check retrieval of last stored deal', async () => {
+  it('checks retrieval of last stored deal', async () => {
     const eventData = {
-      id: 1,
+      claimId: 1,
       provider: 2,
       client: 3,
       pieceCid: 'baga6ea4seaqc4z4432snwkztsadyx2rhoa6rx3wpfzu26365wvcwlb2wyhb5yfi',
@@ -84,7 +84,7 @@ describe('deal-observer-backend', () => {
     assert.deepStrictEqual(expected, [actual])
   })
 
-  it('check number of stored deals', async () => {
+  it('checks number of stored deals', async () => {
     /**
      * @param {Static<typeof ClaimEvent>} eventData
      */
@@ -94,7 +94,7 @@ describe('deal-observer-backend', () => {
       await storeActiveDeals([activeDeal], pgPool)
     }
     const data = Value.Parse(ClaimEvent, {
-      id: 1,
+      claimId: 1,
       provider: 2,
       client: 3,
       pieceCid: 'baga6ea4seaqc4z4432snwkztsadyx2rhoa6rx3wpfzu26365wvcwlb2wyhb5yfi',
@@ -108,7 +108,7 @@ describe('deal-observer-backend', () => {
     await storeBlockEvent(data)
     assert.strictEqual(await countStoredActiveDeals(pgPool), 1n)
     // Entries must be unique
-    data.id = 2
+    data.claimId = 2
     data.provider = 3
     await storeBlockEvent(data)
     assert.strictEqual(await countStoredActiveDeals(pgPool), 2n)
@@ -124,7 +124,7 @@ describe('deal-observer-backend', () => {
       await storeActiveDeals([dbEntry], pgPool)
     }
     const eventData = {
-      id: 1,
+      claimId: 1,
       provider: 2,
       client: 3,
       pieceCid: 'baga6ea4seaqc4z4432snwkztsadyx2rhoa6rx3wpfzu26365wvcwlb2wyhb5yfi',
@@ -142,7 +142,7 @@ describe('deal-observer-backend', () => {
     assert.strictEqual(actual.length, 1)
     // If we only change the id, the unique constraint which does not include the id will prevent the insertion
     // This test verifies that `storeDeal` handles such situation by ignoring the duplicate deal record
-    eventData.id = 2
+    eventData.claimId = 2
     await storeDeal(eventData)
     actual = await loadDeals(pgPool, 'SELECT * FROM active_deals')
     assert.strictEqual(actual.length, 1)
@@ -159,7 +159,7 @@ describe('deal-observer-backend', () => {
       await storeActiveDeals(dbEntries, pgPool)
     }
     const eventData = Value.Parse(ClaimEvent, {
-      id: 1,
+      claimId: 1,
       provider: 2,
       client: 3,
       pieceCid: 'baga6ea4seaqc4z4432snwkztsadyx2rhoa6rx3wpfzu26365wvcwlb2wyhb5yfi',
@@ -172,12 +172,12 @@ describe('deal-observer-backend', () => {
       payload_retrievability_state: PayloadRetrievabilityState.NotQueried,
       last_payload_retrieval_attempt: undefined
     })
-    await storeDeal([eventData, { ...eventData, id: 2 }])
+    await storeDeal([eventData, { ...eventData, claimId: 2 }])
     const actual = await loadDeals(pgPool, 'SELECT * FROM active_deals')
     // Only one of the events will be stored in the database
     assert.strictEqual(actual.length, 1)
   })
-  it('check number of reverted stored deals', async () => {
+  it('checks number of reverted stored deals', async () => {
     /**
      * @param {Static<typeof ClaimEvent>} eventData
      * @param {boolean} reverted
@@ -188,7 +188,7 @@ describe('deal-observer-backend', () => {
       await storeActiveDeals([activeDeal], pgPool)
     }
     const data = Value.Parse(ClaimEvent, {
-      id: 1,
+      claimId: 1,
       provider: 2,
       client: 3,
       pieceCid: 'baga6ea4seaqc4z4432snwkztsadyx2rhoa6rx3wpfzu26365wvcwlb2wyhb5yfi',
@@ -201,15 +201,15 @@ describe('deal-observer-backend', () => {
     assert.strictEqual(await countRevertedActiveDeals(pgPool), 0n)
     await storeBlockEvent(data, false)
     assert.strictEqual(await countRevertedActiveDeals(pgPool), 0n)
-    data.id = 2
+    data.claimId = 2
     data.provider = 3
     await storeBlockEvent(data, true)
     assert.strictEqual(await countRevertedActiveDeals(pgPool), 1n)
-    data.id = 3
+    data.claimId = 3
     data.provider = 4
     await storeBlockEvent(data, false)
     assert.strictEqual(await countRevertedActiveDeals(pgPool), 1n)
-    data.id = 4
+    data.claimId = 4
     data.provider = 5
     await storeBlockEvent(data, true)
     assert.strictEqual(await countRevertedActiveDeals(pgPool), 2n)
@@ -228,12 +228,13 @@ describe('deal-observer-backend built in actor event observer', () => {
     switch (method) {
       case 'Filecoin.ChainHead':
         return parse(JSON.stringify(chainHeadTestData))
-      case 'Filecoin.GetActorEventsRaw':{
+      case 'Filecoin.GetActorEventsRaw': {
         assert(typeof params[0] === 'object' && params[0], 'params[0] must be an object')
         const filter = /** @type {{fromHeight: number; toHeight: number}} */(params[0])
         assert(typeof filter.fromHeight === 'number', 'filter.fromHeight must be a number')
         assert(typeof filter.toHeight === 'number', 'filter.toHeight must be a number')
-        return parse(JSON.stringify(rawActorEventTestData)).filter((/** @type {{ height: number; }} */ e) => e.height >= filter.fromHeight && e.height <= filter.toHeight) }
+        return parse(JSON.stringify(rawActorEventTestData)).filter((/** @type {{ height: number; }} */ e) => e.height >= filter.fromHeight && e.height <= filter.toHeight)
+      }
       default:
         console.error('Unknown method')
     }

@@ -44,7 +44,6 @@ const rawEventEntriesToEvent = (rawEventEntries) => {
         value)
       )
     }
-
     event[key] = value
   }
   if (!eventType) {
