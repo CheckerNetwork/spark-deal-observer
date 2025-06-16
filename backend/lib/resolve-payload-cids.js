@@ -63,7 +63,6 @@ export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidR
         }
 
         deal.last_payload_retrieval_attempt = new Date(now)
-
         await updatePayloadCidInActiveDeal(
           pgPool,
           deal,
