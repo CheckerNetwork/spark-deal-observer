@@ -1,7 +1,6 @@
 import { loadDeals } from './deal-observer.js'
 import * as util from 'node:util'
 import { PayloadRetrievabilityState } from '@filecoin-station/deal-observer-db/lib/types.js'
-import debug from 'debug'
 import { GLIF_TOKEN, RPC_URL } from './config.js'
 import { ethers } from 'ethers'
 import {
@@ -29,24 +28,50 @@ const THREE_DAYS_IN_MILLISECONDS = 1000 * 60 * 60 * 24 * 3
  */
 export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now()) => {
   let payloadCidsResolved = 0
-  for (const deal of await fetchDealsWithUnresolvedPayloadCid(pgPool, maxDeals, new Date(now - THREE_DAYS_IN_MILLISECONDS))) {
-    const { peerId: minerPeerId, source } = await getIndexProviderPeerId(deal.miner_id)
-    debug(`Using PeerID from ${source}.`)
+
+  const deals = await fetchDealsWithUnresolvedPayloadCid(
+    pgPool,
+    maxDeals,
+    new Date(now - THREE_DAYS_IN_MILLISECONDS)
+  )
+
+  const tasks = deals.map(async (deal) => {
+    const { peerId: minerPeerId } = await getIndexProviderPeerId(deal.miner_id)
+
     const payloadCid = await makePayloadCidRequest(minerPeerId, deal.piece_cid)
-    if (payloadCid) deal.payload_cid = payloadCid
-    if (!deal.payload_cid) {
-      if (deal.last_payload_retrieval_attempt) {
-        deal.payload_retrievability_state = PayloadRetrievabilityState.TerminallyUnretrievable
-      } else {
-        deal.payload_retrievability_state = PayloadRetrievabilityState.Unresolved
-      }
-    } else {
-      payloadCidsResolved++
+
+    if (payloadCid) {
+      deal.payload_cid = payloadCid
       deal.payload_retrievability_state = PayloadRetrievabilityState.Resolved
+      payloadCidsResolved++
+    } else if (deal.last_payload_retrieval_attempt) {
+      deal.payload_retrievability_state = PayloadRetrievabilityState.TerminallyUnretrievable
+    } else {
+      deal.payload_retrievability_state = PayloadRetrievabilityState.Unresolved
     }
+
     deal.last_payload_retrieval_attempt = new Date(now)
-    await updatePayloadCidInActiveDeal(pgPool, deal, deal.payload_retrievability_state, deal.last_payload_retrieval_attempt, deal.payload_cid)
+
+    await updatePayloadCidInActiveDeal(
+      pgPool,
+      deal,
+      deal.payload_retrievability_state,
+      deal.last_payload_retrieval_attempt,
+      deal.payload_cid
+    )
+  })
+
+  const results = await Promise.allSettled(tasks)
+
+  const errors = results
+    .filter(result => result.status === 'rejected')
+    .map(result => result.status === 'rejected' ? result.reason : null)
+
+  if (errors.length > 0) {
+    const aggregatedError = new Error(`${errors.length} deal(s) failed to process`, { cause: errors })
+    throw aggregatedError
   }
+
   return payloadCidsResolved
 }
 
