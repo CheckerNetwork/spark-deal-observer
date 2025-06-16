@@ -11,6 +11,7 @@ import {
 } from 'index-provider-peer-id'
 import { rpcRequest } from './rpc-service/service.js'
 import assert from 'node:assert'
+import { LRUCache } from 'lru-cache'
 
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import { Static } from '@sinclair/typebox' */
@@ -148,3 +149,35 @@ export const getPeerId = async (minerId, { smartContract, makeRpcRequest } = { s
   }
   )
 }
+
+/**
+ * @param {number} minerId
+ * @param {LRUCache<number, { peerId: string, source: string }>} cache
+ * @param {import('./typings.js').GetIndexProviderPeerId} getIndexProviderPeerId
+ * @returns {Promise<{ peerId: string, source: string }>}
+ */
+export const getCachedIndexProviderPeerId = async (
+  minerId,
+  cache,
+  getIndexProviderPeerId,
+) => {
+  const peerIdCached = cache.get(minerId);
+  if (peerIdCached) {
+    return peerIdCached;
+  }
+
+  const value = await getIndexProviderPeerId(minerId);
+  cache.set(minerId, value);
+  return value;
+};
+
+/**
+ * @returns {LRUCache<number, { peerId: string, source: string }>}
+ */
+const getDefaultLRUCache = () => {
+  return new LRUCache({
+    max: 10000, // max number of cached entries
+    ttl: 1000 * 60 * 60, // 1 hour
+    updateAgeOnGet: true,
+  });
+};

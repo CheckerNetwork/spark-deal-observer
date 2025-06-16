@@ -9,7 +9,8 @@ import { minerPeerIds } from './test_data/minerInfo.js'
 import { payloadCIDs } from './test_data/payloadCIDs.js'
 import { Value } from '@sinclair/typebox/value'
 import { ActiveDeal, PayloadRetrievabilityState } from '@filecoin-station/deal-observer-db/lib/types.js'
-import { countStoredActiveDealsWithPayloadState, countStoredActiveDealsWithUnresolvedPayloadCid, getPeerId, resolvePayloadCids } from '../lib/resolve-payload-cids.js'
+import { countStoredActiveDealsWithPayloadState, countStoredActiveDealsWithUnresolvedPayloadCid, getCachedIndexProviderPeerId, getPeerId, resolvePayloadCids } from '../lib/resolve-payload-cids.js'
+import { LRUCache } from 'lru-cache'
 /** @import { Static } from '@sinclair/typebox' */
 
 describe('Payload CIDs resolver', () => {
@@ -388,3 +389,47 @@ describe('getPeerId', () => {
       `Source should be 'smartContract' or 'minerInfo', got '${result.source}'`)
   })
 })
+
+describe("getCachedIndexProviderPeerId", () => {
+  it("getCachedIndexProviderPeerId should cache the result", async () => {
+    const testMinerId = 123;
+    const expectedResult = { peerId: "peer-abc", source: "mock" };
+
+    let callCount = 0;
+
+    /**
+     * @param {number} minerId
+     * @returns {Promise<{ peerId: string, source: string }>}
+     * */
+    const mockGetIndexProviderPeerId = async (minerId) => {
+      callCount++;
+      assert.strictEqual(minerId, testMinerId);
+      return expectedResult;
+    };
+
+    // Inject test LRU cache
+    /** @type {LRUCache<number, {peerId:string,source:string}>} */
+    const testCache = new LRUCache({
+      max: 100,
+      ttl: 1000 * 60 * 60, // 1 hour
+    });
+
+    // First call: should invoke the mock function
+    const result1 = await getCachedIndexProviderPeerId(
+      testMinerId,
+      testCache,
+      mockGetIndexProviderPeerId,
+    );
+    assert.deepStrictEqual(result1, expectedResult);
+    assert.strictEqual(callCount, 1);
+
+    // Second call: should return from cache
+    const result2 = await getCachedIndexProviderPeerId(
+      testMinerId,
+      testCache,
+      mockGetIndexProviderPeerId,
+    );
+    assert.deepStrictEqual(result2, expectedResult);
+    assert.strictEqual(callCount, 1); // Should not have incremented
+  });
+});
