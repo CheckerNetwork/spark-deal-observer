@@ -1,7 +1,6 @@
 import { loadDeals } from './deal-observer.js'
 import * as util from 'node:util'
 import { PayloadRetrievabilityState } from '@filecoin-station/deal-observer-db/lib/types.js'
-import debug from 'debug'
 import { GLIF_TOKEN, RPC_URL } from './config.js'
 import { ethers } from 'ethers'
 import {
@@ -11,6 +10,7 @@ import {
 } from 'index-provider-peer-id'
 import { rpcRequest } from './rpc-service/service.js'
 import assert from 'node:assert'
+import pMap from 'p-map'
 
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import { Static } from '@sinclair/typebox' */
@@ -25,28 +25,62 @@ const THREE_DAYS_IN_MILLISECONDS = 1000 * 60 * 60 * 24 * 3
  * @param {Queryable} pgPool
  * @param {number} maxDeals
  * @param {number} [now] The current timestamp in milliseconds
+ * @param {object} [options]
+ * @param {number} [options.concurrency] The maximum number of concurrent requests
  * @returns {Promise<number>}
  */
-export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now()) => {
+export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now(), { concurrency } = { concurrency: 10 }) => {
   let payloadCidsResolved = 0
-  for (const deal of await fetchDealsWithUnresolvedPayloadCid(pgPool, maxDeals, new Date(now - THREE_DAYS_IN_MILLISECONDS))) {
-    const { peerId: minerPeerId, source } = await getIndexProviderPeerId(deal.miner_id)
-    debug(`Using PeerID from ${source}.`)
-    const payloadCid = await makePayloadCidRequest(minerPeerId, deal.piece_cid)
-    if (payloadCid) deal.payload_cid = payloadCid
-    if (!deal.payload_cid) {
-      if (deal.last_payload_retrieval_attempt) {
-        deal.payload_retrievability_state = PayloadRetrievabilityState.TerminallyUnretrievable
-      } else {
-        deal.payload_retrievability_state = PayloadRetrievabilityState.Unresolved
+
+  const deals = await fetchDealsWithUnresolvedPayloadCid(
+    pgPool,
+    maxDeals,
+    new Date(now - THREE_DAYS_IN_MILLISECONDS)
+  )
+
+  /**
+   * @type {Array<Error>}
+   */
+  const errors = []
+
+  await pMap(
+    deals,
+    async (deal) => {
+      try {
+        const { peerId: minerPeerId } = await getIndexProviderPeerId(deal.miner_id)
+
+        const payloadCid = await makePayloadCidRequest(minerPeerId, deal.piece_cid)
+        if (payloadCid) deal.payload_cid = payloadCid
+        if (!deal.payload_cid) {
+          if (deal.last_payload_retrieval_attempt) {
+            deal.payload_retrievability_state = PayloadRetrievabilityState.TerminallyUnretrievable
+          } else {
+            deal.payload_retrievability_state = PayloadRetrievabilityState.Unresolved
+          }
+        } else {
+          payloadCidsResolved++
+          deal.payload_retrievability_state = PayloadRetrievabilityState.Resolved
+        }
+
+        deal.last_payload_retrieval_attempt = new Date(now)
+        await updatePayloadCidInActiveDeal(
+          pgPool,
+          deal,
+          deal.payload_retrievability_state,
+          deal.last_payload_retrieval_attempt,
+          deal.payload_cid
+        )
+      } catch (err) {
+        errors.push(new Error(`Failed to resolve payload CID for deal ID ${deal.id}.`, { cause: err }))
       }
-    } else {
-      payloadCidsResolved++
-      deal.payload_retrievability_state = PayloadRetrievabilityState.Resolved
-    }
-    deal.last_payload_retrieval_attempt = new Date(now)
-    await updatePayloadCidInActiveDeal(pgPool, deal, deal.payload_retrievability_state, deal.last_payload_retrieval_attempt, deal.payload_cid)
+    },
+    { concurrency }
+  )
+
+  if (errors.length > 0) {
+    throw new AggregateError(errors, `${errors.length} deal(s) failed to process`)
   }
+
   return payloadCidsResolved
 }
 
