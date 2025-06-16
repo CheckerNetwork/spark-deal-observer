@@ -390,46 +390,46 @@ describe('getPeerId', () => {
   })
 })
 
-describe("getCachedIndexProviderPeerId", () => {
-  it("getCachedIndexProviderPeerId should cache the result", async () => {
-    const testMinerId = 123;
-    const expectedResult = { peerId: "peer-abc", source: "mock" };
+describe('getCachedIndexProviderPeerId', () => {
+  it('getCachedIndexProviderPeerId should cache the result', async () => {
+    const testMinerId = 123
+    const expectedResult = { peerId: 'peer-abc', source: 'mock' }
 
-    let callCount = 0;
+    let callCount = 0
 
     /**
      * @param {number} minerId
      * @returns {Promise<{ peerId: string, source: string }>}
      * */
     const mockGetIndexProviderPeerId = async (minerId) => {
-      callCount++;
-      assert.strictEqual(minerId, testMinerId);
-      return expectedResult;
-    };
+      callCount++
+      assert.strictEqual(minerId, testMinerId)
+      return expectedResult
+    }
 
     // Inject test LRU cache
     /** @type {LRUCache<number, {peerId:string,source:string}>} */
     const testCache = new LRUCache({
       max: 100,
-      ttl: 1000 * 60 * 60, // 1 hour
-    });
+      ttl: 1000 * 60 * 60 // 1 hour
+    })
 
     // First call: should invoke the mock function
     const result1 = await getCachedIndexProviderPeerId(
       testMinerId,
       testCache,
-      mockGetIndexProviderPeerId,
-    );
-    assert.deepStrictEqual(result1, expectedResult);
-    assert.strictEqual(callCount, 1);
+      mockGetIndexProviderPeerId
+    )
+    assert.deepStrictEqual(result1, expectedResult)
+    assert.strictEqual(callCount, 1)
 
     // Second call: should return from cache
     const result2 = await getCachedIndexProviderPeerId(
       testMinerId,
       testCache,
-      mockGetIndexProviderPeerId,
-    );
-    assert.deepStrictEqual(result2, expectedResult);
-    assert.strictEqual(callCount, 1); // Should not have incremented
-  });
-});
+      mockGetIndexProviderPeerId
+    )
+    assert.deepStrictEqual(result2, expectedResult)
+    assert.strictEqual(callCount, 1) // Should not have incremented
+  })
+})

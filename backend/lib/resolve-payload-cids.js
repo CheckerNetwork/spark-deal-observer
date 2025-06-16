@@ -26,12 +26,15 @@ const THREE_DAYS_IN_MILLISECONDS = 1000 * 60 * 60 * 24 * 3
  * @param {Queryable} pgPool
  * @param {number} maxDeals
  * @param {number} [now] The current timestamp in milliseconds
+ * @param {LRUCache<number, { peerId: string, source: string }>} [cache] Cache for PeerID lookups
  * @returns {Promise<number>}
  */
-export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now()) => {
+export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now(), cache = defaultCache) => {
   let payloadCidsResolved = 0
   for (const deal of await fetchDealsWithUnresolvedPayloadCid(pgPool, maxDeals, new Date(now - THREE_DAYS_IN_MILLISECONDS))) {
-    const { peerId: minerPeerId, source } = await getIndexProviderPeerId(deal.miner_id)
+    const { peerId: minerPeerId, source } = await getCachedIndexProviderPeerId(
+      deal.miner_id,
+      cache, getIndexProviderPeerId)
     debug(`Using PeerID from ${source}.`)
     const payloadCid = await makePayloadCidRequest(minerPeerId, deal.piece_cid)
     if (payloadCid) deal.payload_cid = payloadCid
@@ -159,25 +162,21 @@ export const getPeerId = async (minerId, { smartContract, makeRpcRequest } = { s
 export const getCachedIndexProviderPeerId = async (
   minerId,
   cache,
-  getIndexProviderPeerId,
+  getIndexProviderPeerId
 ) => {
-  const peerIdCached = cache.get(minerId);
+  const peerIdCached = cache.get(minerId)
   if (peerIdCached) {
-    return peerIdCached;
+    return peerIdCached
   }
 
-  const value = await getIndexProviderPeerId(minerId);
-  cache.set(minerId, value);
-  return value;
-};
+  const value = await getIndexProviderPeerId(minerId)
+  cache.set(minerId, value)
+  return value
+}
 
-/**
- * @returns {LRUCache<number, { peerId: string, source: string }>}
- */
-const getDefaultLRUCache = () => {
-  return new LRUCache({
-    max: 10000, // max number of cached entries
-    ttl: 1000 * 60 * 60, // 1 hour
-    updateAgeOnGet: true,
-  });
-};
+/** @type {LRUCache<number, { peerId: string, source: string }>} */
+const defaultCache = new LRUCache({
+  max: 10000, // max number of cached entries
+  ttl: 1000 * 60 * 60, // 1 hour
+  updateAgeOnGet: true
+})
