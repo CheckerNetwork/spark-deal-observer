@@ -25,9 +25,11 @@ const THREE_DAYS_IN_MILLISECONDS = 1000 * 60 * 60 * 24 * 3
  * @param {Queryable} pgPool
  * @param {number} maxDeals
  * @param {number} [now] The current timestamp in milliseconds
+ * @param {object} [options]
+ * @param {number} [options.concurrency] The maximum number of concurrent requests
  * @returns {Promise<number>}
  */
-export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now()) => {
+export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now(), { concurrency } = { concurrency: 10 }) => {
   let payloadCidsResolved = 0
 
   const deals = await fetchDealsWithUnresolvedPayloadCid(
@@ -73,7 +75,7 @@ export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidR
         errors.push(new Error(`Failed to resolve payload CID for deal ID ${deal.id}.`, { cause: err }))
       }
     },
-    { concurrency: 10 }
+    { concurrency }
   )
 
   if (errors.length > 0) {
