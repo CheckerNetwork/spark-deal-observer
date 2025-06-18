@@ -11,6 +11,7 @@ import {
 } from 'index-provider-peer-id'
 import { rpcRequest } from './rpc-service/service.js'
 import assert from 'node:assert'
+import { LRUCache } from 'lru-cache'
 
 /** @import {Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import { Static } from '@sinclair/typebox' */
@@ -25,12 +26,15 @@ const THREE_DAYS_IN_MILLISECONDS = 1000 * 60 * 60 * 24 * 3
  * @param {Queryable} pgPool
  * @param {number} maxDeals
  * @param {number} [now] The current timestamp in milliseconds
+ * @param {LRUCache<number, { peerId: string, source: string }>} [cache] Cache for PeerID lookups
  * @returns {Promise<number>}
  */
-export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now()) => {
+export const resolvePayloadCids = async (getIndexProviderPeerId, makePayloadCidRequest, pgPool, maxDeals, now = Date.now(), cache = defaultCache) => {
   let payloadCidsResolved = 0
   for (const deal of await fetchDealsWithUnresolvedPayloadCid(pgPool, maxDeals, new Date(now - THREE_DAYS_IN_MILLISECONDS))) {
-    const { peerId: minerPeerId, source } = await getIndexProviderPeerId(deal.miner_id)
+    const { peerId: minerPeerId, source } = await getCachedIndexProviderPeerId(
+      deal.miner_id,
+      cache, getIndexProviderPeerId)
     debug(`Using PeerID from ${source}.`)
     const payloadCid = await makePayloadCidRequest(minerPeerId, deal.piece_cid)
     if (payloadCid) deal.payload_cid = payloadCid
@@ -148,3 +152,30 @@ export const getPeerId = async (minerId, { smartContract, makeRpcRequest } = { s
   }
   )
 }
+
+/**
+ * @param {number} minerId
+ * @param {LRUCache<number, { peerId: string, source: string }>} cache
+ * @param {import('./typings.js').GetIndexProviderPeerId} getIndexProviderPeerId
+ * @returns {Promise<{ peerId: string, source: string }>}
+ */
+export const getCachedIndexProviderPeerId = async (
+  minerId,
+  cache,
+  getIndexProviderPeerId
+) => {
+  const peerIdCached = cache.get(minerId)
+  if (peerIdCached) {
+    return peerIdCached
+  }
+
+  const value = await getIndexProviderPeerId(minerId)
+  cache.set(minerId, value)
+  return value
+}
+
+/** @type {LRUCache<number, { peerId: string, source: string }>} */
+const defaultCache = new LRUCache({
+  max: 10000, // max number of cached entries
+  ttl: 1000 * 60 * 60 // 1 hour
+})
