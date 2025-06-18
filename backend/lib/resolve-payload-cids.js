@@ -177,6 +177,5 @@ export const getCachedIndexProviderPeerId = async (
 /** @type {LRUCache<number, { peerId: string, source: string }>} */
 const defaultCache = new LRUCache({
   max: 10000, // max number of cached entries
-  ttl: 1000 * 60 * 60, // 1 hour
-  updateAgeOnGet: true
+  ttl: 1000 * 60 * 60 // 1 hour
 })
