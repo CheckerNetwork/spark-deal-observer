@@ -25,7 +25,7 @@
     "ethers": "^6.14.3",
     "index-provider-peer-id": "^1.0.1",
     "lru-cache": "^11.1.0",
-    "multiformats": "^13.3.6",
+    "multiformats": "^13.3.7",
     "p-retry": "^6.2.1",
     "pg": "^8.16.0",
     "pg-cursor": "^2.15.0"
