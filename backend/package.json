@@ -22,7 +22,7 @@
     "@sentry/node": "^9.34.0",
     "@sinclair/typebox": "^0.34.37",
     "debug": "^4.4.1",
-    "ethers": "^6.14.4",
+    "ethers": "^6.15.0",
     "index-provider-peer-id": "^1.0.1",
     "lru-cache": "^11.1.0",
     "multiformats": "^13.3.7",
