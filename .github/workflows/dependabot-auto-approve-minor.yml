@@ -23,6 +23,7 @@ jobs:
           - '@sinclair/typebox'
           - multiformats
           - fastify
+          - node
     steps:
       - name: Dependabot metadata
         id: metadata
