@@ -20,7 +20,7 @@
     "@ipld/dag-cbor": "^9.2.4",
     "@ipld/dag-json": "^10.2.5",
     "@sentry/node": "^9.39.0",
-    "@sinclair/typebox": "^0.34.37",
+    "@sinclair/typebox": "^0.34.38",
     "debug": "^4.4.1",
     "ethers": "^6.15.0",
     "index-provider-peer-id": "^1.0.1",
