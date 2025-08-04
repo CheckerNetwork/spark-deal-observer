@@ -1,7 +1,6 @@
 /** @import {PgPool, Queryable} from '@filecoin-station/deal-observer-db' */
 /** @import { Static } from '@sinclair/typebox' */
 import Cursor from 'pg-cursor'
-import * as Sentry from '@sentry/node'
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 
@@ -26,7 +25,6 @@ export const findAndSubmitUnsubmittedDeals = async (pgPool, batchSize, submitDea
       result.skipped += skipped
     } catch (e) {
       console.error('Failed to submit deals:', e)
-      Sentry.captureException(e)
     }
   }
 

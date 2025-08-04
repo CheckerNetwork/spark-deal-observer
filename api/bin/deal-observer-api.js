@@ -1,4 +1,3 @@
-import '../lib/instrument.js'
 import { createApp } from '../lib/app.js'
 import { DATABASE_URL } from '@filecoin-station/deal-observer-db'
 
