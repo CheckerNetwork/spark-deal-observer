@@ -2,7 +2,6 @@ app = "deal-observer-backend"
 primary_region = "cdg"
 
 [env]
-SENTRY_ENVIRONMENT = "production"
 NPM_CONFIG_WORKSPACE = "backend"
 
 [deploy]

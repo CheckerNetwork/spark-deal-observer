@@ -9,7 +9,6 @@ WORKDIR /app
 
 # Set production environment
 ENV NODE_ENV=production
-ENV SENTRY_ENVIRONMENT=production
 
 #######################################################################
 # Throw-away build stage to reduce size of final image

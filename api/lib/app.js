@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/node'
 import Fastify from 'fastify'
 import pg from '@fastify/postgres'
 
@@ -13,7 +12,6 @@ export const createApp = ({
   logger
 }) => {
   const app = Fastify({ logger })
-  Sentry.setupFastifyErrorHandler(app)
   app.register(pg, { connectionString: databaseUrl })
   app.get('/', async function handler (request, reply) {
     return 'OK'

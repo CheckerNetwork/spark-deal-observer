@@ -1,9 +1,7 @@
 /** @import {PgPool} from '@filecoin-station/deal-observer-db' */
 import assert from 'node:assert'
 import { createPgPool } from '@filecoin-station/deal-observer-db'
-import * as Sentry from '@sentry/node'
 import timers from 'node:timers/promises'
-import '../lib/instrument.js'
 import { createInflux } from '../lib/telemetry.js'
 import { rpcRequest } from '../lib/rpc-service/service.js'
 import { fetchDealWithHighestActivatedEpoch, countStoredActiveDeals, observeBuiltinActorEvents } from '../lib/deal-observer.js'
@@ -59,7 +57,6 @@ const observeActorEventsLoop = async (makeRpcRequest, pgPool) => {
       }
     } catch (e) {
       console.error(e)
-      Sentry.captureException(e)
     }
     const dt = Date.now() - start
     console.log(`Loop "Observe built-in actor events" took ${dt}ms`)
@@ -104,7 +101,6 @@ const sparkApiSubmitDealsLoop = async (pgPool, { sparkApiBaseUrl, sparkApiToken,
       }
     } catch (e) {
       console.error(e)
-      Sentry.captureException(e)
     }
     const dt = Date.now() - start
     console.log(`Loop "Submit deals to spark-api" took ${dt}ms`)
@@ -149,7 +145,6 @@ export const resolvePayloadCidsLoop = async (makePayloadCidRequest, pgPool) => {
       }
     } catch (e) {
       console.error(e)
-      Sentry.captureException(e)
     }
     const dt = Date.now() - start
     console.log(`Loop "Look up payload CIDs" took ${dt}ms`)
