@@ -1,0 +1,1 @@
+CREATE INDEX CONCURRENTLY active_deals_payload_retrievability_state ON active_deals (payload_retrievability_state);
