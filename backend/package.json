@@ -19,7 +19,7 @@
     "@influxdata/influxdb-client": "^1.35.0",
     "@ipld/dag-cbor": "^9.2.4",
     "@ipld/dag-json": "^10.2.5",
-    "@sinclair/typebox": "^0.34.39",
+    "@sinclair/typebox": "^0.34.40",
     "debug": "^4.4.1",
     "ethers": "^6.15.0",
     "index-provider-peer-id": "^1.0.1",
