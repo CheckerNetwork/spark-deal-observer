@@ -11,6 +11,7 @@ jobs:
     strategy:
       matrix:
         dependencyStartsWith:
+          - '@ipld/dag-cbor'
           - pg
           - debug
           - ethers
