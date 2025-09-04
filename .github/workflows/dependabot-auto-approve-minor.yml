@@ -24,6 +24,7 @@ jobs:
           - multiformats
           - fastify
           - node
+          - lru-cache
     steps:
       - name: Dependabot metadata
         id: metadata
