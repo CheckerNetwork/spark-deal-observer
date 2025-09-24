@@ -23,7 +23,7 @@
     "debug": "^4.4.3",
     "ethers": "^6.15.0",
     "index-provider-peer-id": "^1.0.1",
-    "lru-cache": "^11.2.1",
+    "lru-cache": "^11.2.2",
     "multiformats": "^13.4.1",
     "p-retry": "^7.0.0",
     "pg": "^8.16.3",
