@@ -25,6 +25,7 @@ jobs:
           - fastify
           - node
           - lru-cache
+          - p-retry
     steps:
       - name: Dependabot metadata
         id: metadata
