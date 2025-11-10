@@ -15,7 +15,7 @@
     "@fastify/postgres": "^6.0.2",
     "@filecoin-station/deal-observer-db": "^1.0.0",
     "debug": "^4.4.3",
-    "fastify": "^5.6.1",
+    "fastify": "^5.6.2",
     "http-assert": "^1.5.0",
     "pg": "^8.16.3"
   }
